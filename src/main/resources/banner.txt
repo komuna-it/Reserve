@@ -1,0 +1,8 @@
+${AnsiColor.GREEN}${AnsiStyle.BOLD} ____
+|  _ \ ___  ___  ___ _ ____   _____
+| |_) / _ \/ __|/ _ \ '__\ \ / / _ \
+|  _ <  __/\__ \  __/ |   \ V /  __/
+|_| \_\___||___/\___|_|    \_/ \___|
+                   ${AnsiColor.BRIGHT_GREEN}Created by Komuna
+${AnsiColor.GREEN}
+Starting application...${AnsiColor.DEFAULT}

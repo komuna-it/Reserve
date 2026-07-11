@@ -19,9 +19,10 @@ class UserEntity(
     var id: Long?= null,
     var email: String,
     var nick: String,
-    var password: String,
+    var password: String?,
     @Enumerated(EnumType.STRING)
     var role: Role = Role.USER,
     var created: OffsetDateTime? = null,
+    var passwordChanged: OffsetDateTime? = null,
 ) {
 }
