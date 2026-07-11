@@ -3,9 +3,10 @@ package site.komuna.reserve.security.token.access
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.exception.InvalidRefreshToken
+import site.komuna.reserve.common.exception.InvalidRefreshTokenException
 import site.komuna.reserve.security.token.TokenProperties
 import site.komuna.reserve.security.token.refresh.RefreshToken
+import site.komuna.reserve.security.token.refresh.RefreshTokenEntity
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.user.model.UserEntity
 import java.nio.charset.StandardCharsets
@@ -25,7 +26,7 @@ class AccessTokenService(
 
     fun generateAccessToken(user: UserEntity, refreshToken: String): AccessToken {
         if(!refreshTokenService.isTokenValid(refreshToken)) {
-            throw InvalidRefreshToken()
+            throw InvalidRefreshTokenException()
         }
 
         val now = OffsetDateTime.now()
@@ -45,7 +46,13 @@ class AccessTokenService(
         )
     }
 
-    fun generateAccessToken(user: UserEntity, refreshToken: RefreshToken) : AccessToken {
+    fun generateAccessToken(user: UserEntity, refreshToken: RefreshTokenEntity) : AccessToken {
         return generateAccessToken(user, refreshToken.token)
+    }
+
+    fun generateAccessToken(refreshToken: String) : AccessToken {
+        val token = refreshTokenService.getRefreshToken(refreshToken) ?: throw InvalidRefreshTokenException()
+
+        return generateAccessToken(token.user, refreshToken)
     }
 }

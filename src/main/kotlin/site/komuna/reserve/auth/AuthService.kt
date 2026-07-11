@@ -4,11 +4,16 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import site.komuna.reserve.auth.request.RegisterRequest
 import site.komuna.reserve.auth.response.LoginResponse
-import site.komuna.reserve.auth.response.RegisterResponse
 import site.komuna.reserve.common.exception.EmailAlreadyTakenException
+import site.komuna.reserve.common.exception.EmailNotConfirmedException
 import site.komuna.reserve.common.exception.InvalidCredentialsException
+import site.komuna.reserve.common.exception.TokenExpiredException
+import site.komuna.reserve.security.token.access.AccessToken
 import site.komuna.reserve.security.token.access.AccessTokenService
+import site.komuna.reserve.security.token.refresh.RefreshToken
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
+import site.komuna.reserve.security.token.verification.VerificationTokenService
+import site.komuna.reserve.user.UserRepository
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 
@@ -17,29 +22,53 @@ class AuthService (
     private val userService: UserService,
     private val passwordEncoder: PasswordEncoder,
     private val accessTokenService: AccessTokenService,
-    private val refreshTokenService: RefreshTokenService
+    private val refreshTokenService: RefreshTokenService,
+    private val verificationTokenService: VerificationTokenService,
 ) {
 
-    fun register(request: RegisterRequest) : RegisterResponse {
+    fun register(request: RegisterRequest) {
+
+        // TODO:
+        // - Create user
+        // - Create verification token
+        // - send email with verification link
 
         if(userService.isEmailTaken(request.email)) {
             throw EmailAlreadyTakenException()
         }
 
-        // TODO: Dokończyć rejestracje
-
         val newUser = userService.createUser(request)
-
-        return RegisterResponse()
+        val verificationToken = verificationTokenService.generateVerificationTokenEntity(newUser)
     }
 
     fun login(email: String, password: String) : LoginResponse {
         val user = authenticate(email, password)
 
+        if(!userService.wasEmailConfirmed(user)) throw EmailNotConfirmedException()
+
         val refreshToken = refreshTokenService.generateRefreshToken(user)
         val accessToken = accessTokenService.generateAccessToken(user, refreshToken)
 
-        return LoginResponse(refreshToken, accessToken)
+        val refreshDto = RefreshToken(refreshToken)
+
+        return LoginResponse(refreshDto, accessToken, user)
+    }
+
+    fun refresh(token: String): AccessToken {
+        return accessTokenService.generateAccessToken(token)
+    }
+
+    /**
+     * Method confirm email if the token is valid, if not, regenerate the token
+     */
+    fun confirmEmail(token: String) {
+        try {
+            verificationTokenService.confirmEmail(token)
+        }
+        catch (e: Exception) {
+            verificationTokenService.regenerateVerificationToken(token)
+            throw TokenExpiredException()
+        }
     }
 
     /**

@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class TokenProperties(
     val secret: String,
     var accessExpirationMinutes: Long = 2,
-    var refreshExpirationDays: Long = 30
+    var refreshExpirationDays: Long = 30,
+    var validationExpirationMinutes: Long = 30,
 ) {
 }
