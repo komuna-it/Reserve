@@ -18,20 +18,24 @@ class RefreshTokenService(
     /**
      * Generate and save in the database a refresh token for a user
      */
-    fun generateRefreshToken(user: UserEntity): RefreshToken {
+    fun generateRefreshToken(user: UserEntity): RefreshTokenEntity {
 
         val token = UUID.randomUUID().toString()
         val hashedToken = token.sha256()
 
-        val expires = OffsetDateTime.now().plusDays(expirationDays)
+        val created = OffsetDateTime.now()
+        val expires = created.plusDays(expirationDays)
 
-        repository.save(RefreshTokenEntity(
+        return repository.save(RefreshTokenEntity(
             token = hashedToken,
             user = user,
-            expires = expires
+            expires = expires,
+            createdAt = created
         ))
+    }
 
-        return RefreshToken(token, expires)
+    fun getRefreshToken(token: String): RefreshTokenEntity? {
+        return repository.findByToken(token)
     }
 
     /**
@@ -39,7 +43,9 @@ class RefreshTokenService(
      */
     fun isTokenValid(token: String): Boolean {
         val tokenEntity = repository.findByToken(token) ?: return false
+        val now = OffsetDateTime.now()
+        val expires = tokenEntity.expires
 
-        return tokenEntity.expires.isAfter(OffsetDateTime.now())
+        return now.isBefore(expires)
     }
 }

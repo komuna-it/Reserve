@@ -6,7 +6,7 @@ class UserDto(
     val id: Long,
     val email: String,
     val nick: String,
-    val role: Role
+    val role: Role,
 ) {
     constructor(userEntity: UserEntity) : this(
         userEntity.id!!,
