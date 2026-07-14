@@ -1,20 +1,29 @@
 package site.komuna.reserve.user
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.transaction.Transactional
+import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import site.komuna.reserve.auth.request.RegisterRequest
+import site.komuna.reserve.common.exception.ReserveException
 import site.komuna.reserve.common.exception.UserNotFoundException
+import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
+import site.komuna.reserve.user.ban.BanService
+import site.komuna.reserve.user.ban.model.BanEntity
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.time.Duration
 
 @Service
 class UserService(
     private val repository: UserRepository,
     private val validationTokenService: VerificationTokenService,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val banService: BanService,
+    private val refreshTokenService: RefreshTokenService,
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -49,6 +58,11 @@ class UserService(
         val targetUser = findById(id) ?: throw UserNotFoundException(id)
         val sourceUser = findById(by.toLong()) ?: throw UserNotFoundException(by.toLong())
 
+        if (role == Role.MANAGER) {
+            logger.error { "User: ${sourceUser.email} tried to assign Manager role to user: ${targetUser.email}." }
+            throw ReserveException(HttpStatus.FORBIDDEN, "You are not allowed to assign Manager role")
+        }
+
         logger.info { "Assignee role $role to user: ${targetUser.email} by user ID: ${sourceUser.email}" }
 
         targetUser.role = role
@@ -59,6 +73,18 @@ class UserService(
     fun assigneeUserRole(id: Long, role: String, by: String): UserEntity {
         val role = Role.from(role.uppercase())
         return assigneeUserRole(id, role, by)
+    }
+
+    @Transactional
+    fun banUser(id: Long, by: Long, reason: String, duration: Duration): BanEntity {
+        val user = findById(id) ?: throw UserNotFoundException(id)
+        val bannedBy = findById(by) ?: throw UserNotFoundException(by)
+
+        if (reason.isBlank()) throw ReserveException(HttpStatus.BAD_REQUEST, "Reason is required")
+
+        refreshTokenService.revokeAllTokensForUser(user)
+
+        return banService.banUser(user, bannedBy, reason, duration)
     }
 
     fun findById(id: Long): UserEntity? {
@@ -78,5 +104,10 @@ class UserService(
      */
     fun wasEmailConfirmed(user: UserEntity): Boolean {
         return validationTokenService.getTokenForUser(user) == null
+    }
+
+    fun isUserBanned(id: Long): Boolean {
+        val ban = banService.isUserBanned(id)
+        return ban != null
     }
 }

@@ -39,6 +39,10 @@ class RefreshTokenService(
         return repository.findByToken(token)
     }
 
+    fun revokeAllTokensForUser(user: UserEntity) {
+        repository.deleteByUserId(user.id!!)
+    }
+
     /**
      * Check if a refresh token is valid
      */

@@ -1,4 +1,4 @@
-package site.komuna.reserve.config
+package site.komuna.reserve.security.token.access
 
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -9,11 +9,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
-import site.komuna.reserve.security.token.access.AccessTokenService
+import site.komuna.reserve.user.ban.BanService
 
 @Component
 class JwtAuthenticationFilter(
-    private val service: AccessTokenService
+    private val service: AccessTokenService,
+    private val banService: BanService,
 ) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
@@ -21,13 +22,7 @@ class JwtAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
-        println("JwtAuthenticationFilter executed")
-
         val authHeader = request.getHeader(HttpHeaders.AUTHORIZATION)
-
-        println(authHeader)
-
-
 
         if (authHeader.isNullOrBlank() || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response)
@@ -36,12 +31,17 @@ class JwtAuthenticationFilter(
 
         val token = authHeader.substring(7)
 
-        println("role = ${service.extractUserRole(token)}")
-        println("userId = ${service.extractUserId(token)}")
-
         try {
             val userId = service.extractUserId(token)
             val role = service.extractUserRole(token)
+
+            val ban = banService.isUserBanned(userId)
+
+            if (ban != null) {
+                logger.warn("User $userId is banned until ${ban.banExpires}")
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "User is banned until ${ban.banExpires}")
+                return
+            }
 
             val authentication = UsernamePasswordAuthenticationToken(
                 userId,
@@ -51,11 +51,8 @@ class JwtAuthenticationFilter(
 
             SecurityContextHolder.getContext().authentication = authentication
 
-            println(SecurityContextHolder.getContext().authentication)
-
-            println(SecurityContextHolder.getContext().authentication.authorities)
-
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            e.printStackTrace()
             SecurityContextHolder.clearContext()
         }
 
