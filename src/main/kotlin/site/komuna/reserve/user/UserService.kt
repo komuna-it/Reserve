@@ -1,13 +1,14 @@
 package site.komuna.reserve.user
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import site.komuna.reserve.auth.request.RegisterRequest
-import site.komuna.reserve.common.exception.VerificationTokenNotFoundException
+import site.komuna.reserve.common.exception.UserNotFoundException
 import site.komuna.reserve.security.token.verification.VerificationTokenService
-import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @Service
 class UserService(
@@ -15,9 +16,13 @@ class UserService(
     private val validationTokenService: VerificationTokenService,
     private val passwordEncoder: PasswordEncoder
 ) {
+    companion object {
+        private val logger = KotlinLogging.logger {}
+    }
+
     fun createUser(request: RegisterRequest): UserEntity {
 
-        val now = OffsetDateTime.now()
+        val now = OffsetDateTime.now(ZoneOffset.UTC)
         val email = request.email
         val nick = request.name
         val password = passwordEncoder.encode(request.password)
@@ -32,7 +37,32 @@ class UserService(
             passwordChanged = now
         ))
 
+        logger.info { "User with email: ${savedUser.email} was created" }
+
         return savedUser
+    }
+
+    /**
+     * Method assignee user role to a user
+     */
+    fun assigneeUserRole(id: Long, role: Role, by: String): UserEntity {
+        val targetUser = findById(id) ?: throw UserNotFoundException(id)
+        val sourceUser = findById(by.toLong()) ?: throw UserNotFoundException(by.toLong())
+
+        logger.info { "Assignee role $role to user: ${targetUser.email} by user ID: ${sourceUser.email}" }
+
+        targetUser.role = role
+
+        return repository.save(targetUser)
+    }
+
+    fun assigneeUserRole(id: Long, role: String, by: String): UserEntity {
+        val role = Role.from(role.uppercase())
+        return assigneeUserRole(id, role, by)
+    }
+
+    fun findById(id: Long): UserEntity? {
+        return repository.findById(id).orElse(null)
     }
 
     fun findByEmail(email: String): UserEntity? {
