@@ -1,11 +1,14 @@
 package site.komuna.reserve.security.token.verification
 
+import jakarta.annotation.PostConstruct
 import org.springframework.stereotype.Service
 import site.komuna.reserve.common.exception.TokenExpiredException
 import site.komuna.reserve.common.exception.VerificationTokenNotFoundException
 import site.komuna.reserve.security.token.TokenProperties
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
+import java.time.OffsetTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -22,7 +25,7 @@ class VerificationTokenService (
     fun generateVerificationTokenEntity(user: UserEntity): VerificationTokenEntity {
         val token = UUID.randomUUID().toString()
 
-        val created = OffsetDateTime.now()
+        val created = OffsetDateTime.now(ZoneOffset.UTC)
         val expires = created.plusMinutes(expirationMinutes)
 
         val newToken = repository.save(VerificationTokenEntity(
@@ -43,7 +46,7 @@ class VerificationTokenService (
 
         val token = UUID.randomUUID().toString()
 
-        val created = OffsetDateTime.now()
+        val created = OffsetDateTime.now(ZoneOffset.UTC)
         val expires = created.plusMinutes(expirationMinutes)
 
         tokenEntity.token = token
@@ -60,7 +63,7 @@ class VerificationTokenService (
     fun confirmEmail(token: String) {
         val tokenEntity = repository.findByToken(token) ?: throw VerificationTokenNotFoundException()
 
-        val now = OffsetDateTime.now()
+        val now = OffsetDateTime.now(ZoneOffset.UTC)
 
         if(now.isAfter(tokenEntity.expires)) throw TokenExpiredException()
 

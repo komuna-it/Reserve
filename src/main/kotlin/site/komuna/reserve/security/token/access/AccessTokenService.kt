@@ -5,12 +5,12 @@ import io.jsonwebtoken.security.Keys
 import org.springframework.stereotype.Service
 import site.komuna.reserve.common.exception.InvalidRefreshTokenException
 import site.komuna.reserve.security.token.TokenProperties
-import site.komuna.reserve.security.token.refresh.RefreshToken
 import site.komuna.reserve.security.token.refresh.RefreshTokenEntity
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.user.model.UserEntity
 import java.nio.charset.StandardCharsets
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.Date
 import javax.crypto.SecretKey
 
@@ -24,12 +24,13 @@ class AccessTokenService(
     private val key: SecretKey = Keys.hmacShaKeyFor(tokenProperties.secret.toByteArray(StandardCharsets.UTF_8))
     private val expirationSeconds = tokenProperties.accessExpirationMinutes * 60
 
+    // GENERATING ACCESS TOKEN
     fun generateAccessToken(user: UserEntity, refreshToken: String): AccessToken {
         if(!refreshTokenService.isTokenValid(refreshToken)) {
             throw InvalidRefreshTokenException()
         }
 
-        val now = OffsetDateTime.now()
+        val now = OffsetDateTime.now(ZoneOffset.UTC)
         val expires = now.plusSeconds(expirationSeconds)
 
         val token = Jwts.builder()
@@ -54,5 +55,25 @@ class AccessTokenService(
         val token = refreshTokenService.getRefreshToken(refreshToken) ?: throw InvalidRefreshTokenException()
 
         return generateAccessToken(token.user, refreshToken)
+    }
+
+    // EXTRACT CLAIMS
+    fun extractUserId(token: String): Long {
+        return Jwts.parser()
+            .verifyWith(key)
+            .build()
+            .parseSignedClaims(token)
+            .payload
+            .subject.toLong()
+    }
+
+    fun extractUserRole(token: String): String {
+        val claims = Jwts.parser()
+            .verifyWith(key)
+            .build()
+            .parseSignedClaims(token)
+            .payload
+
+        return claims["role"] as String
     }
 }

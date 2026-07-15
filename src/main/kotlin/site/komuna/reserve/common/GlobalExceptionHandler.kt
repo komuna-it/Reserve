@@ -8,12 +8,13 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import site.komuna.reserve.common.exception.ReserveException
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
     data class ErrorResponse(
-        val timestamp: OffsetDateTime = OffsetDateTime.now(),
+        val timestamp: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
         val status: Int,
         val error: String
     )

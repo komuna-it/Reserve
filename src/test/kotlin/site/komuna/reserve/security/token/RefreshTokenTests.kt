@@ -9,6 +9,7 @@ import site.komuna.reserve.security.token.refresh.RefreshTokenEntity
 import site.komuna.reserve.security.token.refresh.RefreshTokenRepository
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import kotlin.test.Test
 
 class RefreshTokenTests {
@@ -33,7 +34,7 @@ class RefreshTokenTests {
     fun returnTrueWhenTokenIsValid() {
 
         // Arrange
-        val now = OffsetDateTime.now()
+        val now = OffsetDateTime.now(ZoneOffset.UTC)
         val tokenEntity = RefreshTokenEntity(
             token = "token",
             user = mockk(relaxed = true),
@@ -54,7 +55,7 @@ class RefreshTokenTests {
     @Test
     fun returnFalseWhenTokenIsExpired() {
         // Arrange
-        val now = OffsetDateTime.now()
+        val now = OffsetDateTime.now(ZoneOffset.UTC)
         val tokenEntity = RefreshTokenEntity(
             token = "token",
             user = mockk(relaxed = true),

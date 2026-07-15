@@ -13,7 +13,6 @@ import site.komuna.reserve.security.token.access.AccessTokenService
 import site.komuna.reserve.security.token.refresh.RefreshToken
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
-import site.komuna.reserve.user.UserRepository
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 

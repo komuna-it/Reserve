@@ -5,6 +5,7 @@ import site.komuna.reserve.common.extensions.sha256
 import site.komuna.reserve.security.token.TokenProperties
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -23,7 +24,7 @@ class RefreshTokenService(
         val token = UUID.randomUUID().toString()
         val hashedToken = token.sha256()
 
-        val created = OffsetDateTime.now()
+        val created = OffsetDateTime.now(ZoneOffset.UTC)
         val expires = created.plusDays(expirationDays)
 
         return repository.save(RefreshTokenEntity(
@@ -38,12 +39,16 @@ class RefreshTokenService(
         return repository.findByToken(token)
     }
 
+    fun revokeAllTokensForUser(user: UserEntity) {
+        repository.deleteByUserId(user.id!!)
+    }
+
     /**
      * Check if a refresh token is valid
      */
     fun isTokenValid(token: String): Boolean {
         val tokenEntity = repository.findByToken(token) ?: return false
-        val now = OffsetDateTime.now()
+        val now = OffsetDateTime.now(ZoneOffset.UTC)
         val expires = tokenEntity.expires
 
         return now.isBefore(expires)
