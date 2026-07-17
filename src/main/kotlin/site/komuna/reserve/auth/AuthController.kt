@@ -43,7 +43,7 @@ class AuthController(
     }
 
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<String> {
+    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<Long> {
 
         println("Triggered /login")
         val loginData = service.login(request.email, request.password)
@@ -78,7 +78,7 @@ class AuthController(
         println("refreshTokenCookie:  $refreshTokenCookie.toString()")
 
 
-        return ResponseEntity.ok(loginData.userNick)
+        return ResponseEntity.ok(loginData.userId)
     }
 
     @PostMapping("/refresh")

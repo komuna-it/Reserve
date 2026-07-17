@@ -42,6 +42,13 @@ class JwtAuthenticationFilter(
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "User is banned until ${ban.banExpires}")
                 return
             }
+            val authentication = UsernamePasswordAuthenticationToken(
+                userId,
+                null,
+                listOf(SimpleGrantedAuthority("ROLE_$role"))
+            )
+
+            SecurityContextHolder.getContext().authentication = authentication
 
         } catch (e: Exception) {
             e.printStackTrace()
