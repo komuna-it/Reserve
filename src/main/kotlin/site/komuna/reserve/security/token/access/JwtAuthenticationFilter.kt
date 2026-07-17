@@ -43,14 +43,6 @@ class JwtAuthenticationFilter(
                 return
             }
 
-            val authentication = UsernamePasswordAuthenticationToken(
-                userId,
-                null,
-                listOf(SimpleGrantedAuthority("ROLE_$role"))
-            )
-
-            SecurityContextHolder.getContext().authentication = authentication
-
         } catch (e: Exception) {
             e.printStackTrace()
             SecurityContextHolder.clearContext()

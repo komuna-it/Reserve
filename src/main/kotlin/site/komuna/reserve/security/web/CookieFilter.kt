@@ -13,7 +13,11 @@ class CsrfCookieFilter : OncePerRequestFilter() {
         filterChain: FilterChain
     ) {
         val csrfToken = request.getAttribute("_csrf") as? CsrfToken
+        println("CsrfCookieFilter CsrfToken from request: ${csrfToken.toString()}")
+
         csrfToken?.token //generate and save XSRF-TOKEN
+        println("CsrfCookieFilter csrfToken.toString(): $csrfToken.toString()")
+
         filterChain.doFilter(request, response)
     }
 }

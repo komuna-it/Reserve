@@ -28,6 +28,7 @@ class SecurityConfig(
         return http
             .csrf { csrf ->
                 csrf
+                    .ignoringRequestMatchers("/auth/**")
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
             }

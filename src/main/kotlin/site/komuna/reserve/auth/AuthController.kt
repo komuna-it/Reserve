@@ -19,6 +19,7 @@ import site.komuna.reserve.auth.request.LoginRequest
 import site.komuna.reserve.auth.request.RegisterRequest
 import site.komuna.reserve.auth.response.LoginResponse
 import site.komuna.reserve.security.token.access.AccessToken
+import kotlin.math.log
 import kotlin.time.Duration
 
 @RestController
@@ -42,40 +43,42 @@ class AuthController(
     }
 
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<LoginResponse> {
+    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<String> {
 
-
+        println("Triggered /login")
         val loginData = service.login(request.email, request.password)
+        println("LoginData: $loginData")
 
         // TODO
-        // duration by env var!!
+        // token duration by env var!!
 
         val accessTokenCookie = ResponseCookie.from("access_token", loginData.accessToken.token)
             .httpOnly(true)
             .secure(true)
             .path("/")
-            .maxAge(java.time.Duration.ofMinutes(15))
+            .maxAge(java.time.Duration.ofMinutes(5))
             .sameSite("Lax")
             .build()
 
-
         // TODO
-        // refresh token endpoint
-        val refreshEndpoint = "test"
+        // token duration by env var!!
+        val refreshEndpoint = "/auth/refresh"
 
         val refreshTokenCookie = ResponseCookie.from("refresh_token", loginData.refreshToken.token)
         .httpOnly(true)
         .secure(true)
         .path(refreshEndpoint)
-        .maxAge(java.time.Duration.ofMinutes(15))
+        .maxAge(java.time.Duration.ofDays(7))
         .sameSite("Lax")
         .build()
 
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
+        println("accessTokenCookie:  $accessTokenCookie")
+        println("refreshTokenCookie:  $refreshTokenCookie.toString()")
 
 
-        return ResponseEntity.ok(loginData)
+        return ResponseEntity.ok(loginData.userNick)
     }
 
     @PostMapping("/refresh")
