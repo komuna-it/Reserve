@@ -3,7 +3,6 @@ package site.komuna.reserve.security.token
 import io.mockk.verify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import org.junit.jupiter.api.Assertions.*
 import site.komuna.reserve.security.token.refresh.RefreshTokenEntity
 import site.komuna.reserve.security.token.refresh.RefreshTokenRepository
@@ -11,6 +10,7 @@ import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import kotlin.test.Test
+
 
 class RefreshTokenTests {
 

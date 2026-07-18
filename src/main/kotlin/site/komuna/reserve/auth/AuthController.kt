@@ -92,21 +92,21 @@ class AuthController(
 
     @GetMapping("/me")
     fun getCurrentUser(authentication: Authentication?): ResponseEntity<UserDto> {
-        println("/auth/me authentication: $authentication" )
+
+        logger.trace { "/auth/me authentication: $authentication" }
+        logger.trace { "Received a request to get current user" }
 
         if (authentication == null) {
-            println("authentication == null" )
+            logger.trace { "authentication == null" }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
 
         return try {
             val userDto = service.getMe(authentication)
-            println("Returning userDto: $userDto")
-            println("Returning userDto: ${userDto.email}")
-            println("Returning userDto: {${userDto.toString()}")
+
             ResponseEntity.ok(userDto)
         } catch (e: IllegalStateException) {
-            println("IllegalStateException $e ")
+            logger.error { "IllegalStateException $e" }
             ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
     }

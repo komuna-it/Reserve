@@ -74,7 +74,6 @@ class AuthService (
     }
 
     // get user from session
-
     fun getMe(authentication: Authentication?): UserDto {
         if (authentication == null || !authentication.isAuthenticated) {
             throw IllegalStateException("user was not authenticated")
@@ -82,7 +81,6 @@ class AuthService (
 
         val id = authentication.principal
         val userEntity = userService.findById(id as Long)
-            ?: throw IllegalStateException("user not found")
 
         return UserDto(userEntity)
     }
