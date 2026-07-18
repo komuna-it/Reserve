@@ -1,5 +1,6 @@
 package site.komuna.reserve.auth
 
+import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import site.komuna.reserve.auth.request.RegisterRequest
@@ -14,6 +15,7 @@ import site.komuna.reserve.security.token.refresh.RefreshToken
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
 import site.komuna.reserve.user.UserService
+import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
 
 @Service
@@ -26,18 +28,12 @@ class AuthService (
 ) {
 
     fun register(request: RegisterRequest) {
-
-        // TODO:
-        // - Create user
-        // - Create verification token
-        // - send email with verification link
-
         if(userService.isEmailTaken(request.email)) {
             throw EmailAlreadyTakenException()
         }
 
         val newUser = userService.createUser(request)
-        val verificationToken = verificationTokenService.generateVerificationTokenEntity(newUser)
+        verificationTokenService.generateVerificationTokenEntity(newUser)
     }
 
     fun login(email: String, password: String) : LoginResponse {
@@ -57,9 +53,6 @@ class AuthService (
         return accessTokenService.generateAccessToken(token)
     }
 
-    /**
-     * Method confirm email if the token is valid, if not, regenerate the token
-     */
     fun confirmEmail(token: String) {
         try {
             verificationTokenService.confirmEmail(token)
@@ -70,16 +63,27 @@ class AuthService (
         }
     }
 
-    /**
-     * Method check if a user exists and the password is correct
-     */
     private fun authenticate(email: String, password: String): UserEntity {
-        val user = userService.findByEmail(email)?: throw InvalidCredentialsException()
+        val user = userService.findByEmail(email) ?: throw InvalidCredentialsException()
 
         if (!passwordEncoder.matches(password, user.password)) {
             throw InvalidCredentialsException()
         }
 
         return user
+    }
+
+    // get user from session
+
+    fun getMe(authentication: Authentication?): UserDto {
+        if (authentication == null || !authentication.isAuthenticated) {
+            throw IllegalStateException("user was not authenticated")
+        }
+
+        val email = authentication.name
+        val userEntity = userService.findByEmail(email)
+            ?: throw IllegalStateException("user not found")
+
+        return UserDto(userEntity)
     }
 }
