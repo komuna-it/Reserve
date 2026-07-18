@@ -64,10 +64,6 @@ class AuthController(
         return ResponseEntity.ok(loginData.userId)
     }
 
-    /**
-     * Odświeżanie tokenu za pomocą ciasteczka HttpOnly.
-     * Nowy AccessToken również wraca zabezpieczony w ciastku.
-     */
 
     @PostMapping("/refresh")
     fun getAccessToken(
@@ -96,14 +92,21 @@ class AuthController(
 
     @GetMapping("/me")
     fun getCurrentUser(authentication: Authentication?): ResponseEntity<UserDto> {
+        println("/auth/me authentication: $authentication" )
+
         if (authentication == null) {
+            println("authentication == null" )
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
 
         return try {
-            val userStatus = service.getMe(authentication)
-            ResponseEntity.ok(userStatus)
+            val userDto = service.getMe(authentication)
+            println("Returning userDto: $userDto")
+            println("Returning userDto: ${userDto.email}")
+            println("Returning userDto: {${userDto.toString()}")
+            ResponseEntity.ok(userDto)
         } catch (e: IllegalStateException) {
+            println("IllegalStateException $e ")
             ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
     }

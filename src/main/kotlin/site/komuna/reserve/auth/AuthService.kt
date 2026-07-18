@@ -80,8 +80,8 @@ class AuthService (
             throw IllegalStateException("user was not authenticated")
         }
 
-        val email = authentication.name
-        val userEntity = userService.findByEmail(email)
+        val id = authentication.principal
+        val userEntity = userService.findById(id as Long)
             ?: throw IllegalStateException("user not found")
 
         return UserDto(userEntity)

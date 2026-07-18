@@ -29,7 +29,13 @@ class SecurityConfig(
             .csrf { csrf ->
                 csrf
                     .ignoringRequestMatchers("/auth/**")
-                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse().apply {
+                        setCookieCustomizer { cookie ->
+                            cookie.secure(true)
+                            cookie.sameSite("Lax")
+                            cookie.path("/")
+                        }
+                    })
                     .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
             }
             .addFilterAfter(CsrfCookieFilter(), BasicAuthenticationFilter::class.java)
