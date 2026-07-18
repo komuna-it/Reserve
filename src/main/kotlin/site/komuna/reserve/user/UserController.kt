@@ -41,7 +41,10 @@ class UserController(
 
     @GetMapping("/test")
     fun test(): ResponseEntity<String> {
-        return ResponseEntity.ok("Test")
+        return ResponseEntity.ok("""
+            {"text": "TestText"}
+            """)
+
     }
 
 }

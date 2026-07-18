@@ -8,10 +8,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import site.komuna.reserve.security.token.access.JwtAuthenticationFilter
+import site.komuna.reserve.security.web.CsrfCookieFilter
 
 @Configuration
 @EnableMethodSecurity
@@ -22,7 +26,19 @@ class SecurityConfig(
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         return http
-            .csrf { it.disable() }
+            .csrf { csrf ->
+                csrf
+                    .ignoringRequestMatchers("/auth/**")
+                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse().apply {
+                        setCookieCustomizer { cookie ->
+                            cookie.secure(true)
+                            cookie.sameSite("Lax")
+                            cookie.path("/")
+                        }
+                    })
+                    .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
+            }
+            .addFilterAfter(CsrfCookieFilter(), BasicAuthenticationFilter::class.java)
             .cors {  }
             .httpBasic { it.disable() }
             .formLogin { it.disable() }
