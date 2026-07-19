@@ -50,6 +50,7 @@ class SecurityConfig(
                         "/v3/api-docs/**"
                     ).permitAll()
                     .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/rooms/**").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(
