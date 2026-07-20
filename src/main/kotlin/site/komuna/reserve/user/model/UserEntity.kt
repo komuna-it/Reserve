@@ -9,6 +9,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import site.komuna.reserve.user.Role
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @Entity
 @Table(name = "users")
@@ -22,7 +23,8 @@ class UserEntity(
     var password: String?,
     @Enumerated(EnumType.STRING)
     var role: Role = Role.USER,
-    var created: OffsetDateTime? = null,
+    var created: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
     var passwordChanged: OffsetDateTime? = null,
+    var trusted: Boolean = false,
 ) {
 }

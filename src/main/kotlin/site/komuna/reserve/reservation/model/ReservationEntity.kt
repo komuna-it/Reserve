@@ -22,6 +22,9 @@ class ReservationEntity(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
 
+    @Enumerated(EnumType.STRING)
+    var status: ReservationStatus = ReservationStatus.CREATED,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id", nullable = false)
     var room: RoomEntity,

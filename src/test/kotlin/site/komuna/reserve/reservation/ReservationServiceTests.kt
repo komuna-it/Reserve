@@ -7,8 +7,10 @@ import io.mockk.verifySequence
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.exception.OrganizationMemberNotFoundException
 import site.komuna.reserve.organization.OrganizationService
 import site.komuna.reserve.organization.model.OrganizationEntity
+import site.komuna.reserve.reservation.confirm.ConfirmReservationService
 import site.komuna.reserve.reservation.model.CreateReservationRequest
 import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.user.UserService
@@ -21,6 +23,7 @@ class ReservationServiceTests {
 
     val repository = mockk<ReservationRepository>()
     val organizationService = mockk<OrganizationService>()
+    val confirmReservationService = mockk<ConfirmReservationService>()
     val roomService = mockk<RoomService>()
     val userService = mockk<UserService>()
 
@@ -28,7 +31,7 @@ class ReservationServiceTests {
     @Test
     fun memberOfOrganizationShouldReturnOrganization() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val user = mockk<UserEntity>()
         val request = mockk<CreateReservationRequest>()
@@ -54,13 +57,13 @@ class ReservationServiceTests {
     fun throwExceptionWhenUserIsNotMemberOfOrganization() {
 
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val user = mockk<UserEntity>()
         val request = mockk<CreateReservationRequest>()
         val organization = mockk<OrganizationEntity>()
 
-        every { organizationService.isMember(user, organization) } returns false
+        every { organizationService.isMember(user, organization) } throws OrganizationMemberNotFoundException(1L, 1L)
         every { user.id } returns 1L
         every { organization.name } returns "Test organization"
         every { request.organization } returns organization
@@ -70,17 +73,13 @@ class ReservationServiceTests {
         assertThrows<CannotPerformThatActionException> {
             service.validateOrganizationMembership(request)
         }
-
-        verify {
-            organizationService.isMember(user, organization)
-        }
     }
 
     @Test
     fun requestNotConnectedToOrganization() {
 
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val user = mockk<UserEntity>()
         val request = mockk<CreateReservationRequest>()
@@ -105,7 +104,7 @@ class ReservationServiceTests {
     @Test
     fun roomIsTaken() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val request = mockk<CreateReservationRequest>()
 
@@ -125,7 +124,7 @@ class ReservationServiceTests {
     @Test
     fun roomIsAvailable() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val request = mockk<CreateReservationRequest>()
 
@@ -146,7 +145,7 @@ class ReservationServiceTests {
     fun reservationInTheFuture() {
 
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val reservation = mockk<CreateReservationRequest>()
 
@@ -163,7 +162,7 @@ class ReservationServiceTests {
     fun reservationNotInTheFuture() {
 
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val reservation = mockk<CreateReservationRequest>()
 
@@ -180,7 +179,7 @@ class ReservationServiceTests {
     @Test
     fun reservationInAllowedRange() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val reservation = mockk<CreateReservationRequest>()
 
@@ -197,7 +196,7 @@ class ReservationServiceTests {
     @Test
     fun reservationNotInAllowedRangeBeforeStart() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val reservation = mockk<CreateReservationRequest>()
 
@@ -214,7 +213,7 @@ class ReservationServiceTests {
     @Test
     fun reservationNotInAllowedRangeAfterStart() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val reservation = mockk<CreateReservationRequest>()
 
@@ -231,7 +230,7 @@ class ReservationServiceTests {
     @Test
     fun reservationNotInAllowedInterval() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val reservation = mockk<CreateReservationRequest>()
 
@@ -249,7 +248,7 @@ class ReservationServiceTests {
     @Test
     fun durationIsWithinAllowedRange() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val request = mockk<CreateReservationRequest>()
 
@@ -265,7 +264,7 @@ class ReservationServiceTests {
     @Test
     fun durationIsNotWithinAllowedRange() {
         // Arrange
-        val service = ReservationService(repository, organizationService, roomService, userService)
+        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
 
         val request = mockk<CreateReservationRequest>()
 

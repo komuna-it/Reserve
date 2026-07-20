@@ -63,6 +63,11 @@ class UserService(
             throw ReserveException(HttpStatus.FORBIDDEN, "You are not allowed to assign Manager role")
         }
 
+        if (role == Role.SYSTEM) {
+            logger.error { "User: ${sourceUser.email} tried to assign System role to user: ${targetUser.email}." }
+            throw ReserveException(HttpStatus.FORBIDDEN, "You are not allowed to assign System role")
+        }
+
         logger.info { "Assignee role $role to user: ${targetUser.email} by user ID: ${sourceUser.email}" }
 
         targetUser.role = role
@@ -87,6 +92,7 @@ class UserService(
         return banService.banUser(user, bannedBy, reason, duration)
     }
 
+    // get methods
     fun findById(id: Long): UserEntity {
         return repository.findById(id).orElseThrow { UserNotFoundException(id) }
     }
@@ -99,6 +105,16 @@ class UserService(
         return repository.findByEmail(email).orElseThrow { UserNotFoundException(email) }
     }
 
+    fun getSystemUser(): UserEntity {
+        val users = repository.findByRole(Role.SYSTEM)
+
+        if(users.isEmpty()) throw ReserveException(HttpStatus.NOT_FOUND, "System user not found")
+        if(users.size > 1 ) throw ReserveException(HttpStatus.NOT_FOUND, "We have more than one system user. That should not happen")
+
+        return users[0]
+    }
+
+    // Validation methods
     fun isEmailTaken(email: String): Boolean {
         return repository.existsUserEntityByEmail(email)
     }

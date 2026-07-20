@@ -9,4 +9,7 @@ import java.util.Optional
 interface UserRepository: JpaRepository<UserEntity, Long> {
     fun existsUserEntityByEmail(email: String): Boolean
     fun findByEmail(email: String): Optional<UserEntity>
+
+    fun existsByRole(role: Role): Boolean
+    fun findByRole(role: Role): List<UserEntity>
 }
