@@ -4,22 +4,25 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.exception.ReservationNotFoundException
-import site.komuna.reserve.common.exception.UserNotFoundException
 import site.komuna.reserve.organization.OrganizationService
-import site.komuna.reserve.reservation.confirm.ConfirmReservationRepository
+import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
 import site.komuna.reserve.reservation.model.CreateReservationRequest
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.reservation.model.ReservationStatus
+import site.komuna.reserve.reservation.validation.CreateReservationValidation
 import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
+import java.time.Duration
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @Service
 class ReservationService(
     private val repository: ReservationRepository,
     private val confirmReservationService: ConfirmReservationService,
+    private val cancelReservationService: CancelReservationService,
     private val organizationService: OrganizationService,
     private val roomService: RoomService,
     private val userService: UserService,
@@ -55,17 +58,18 @@ class ReservationService(
 
         if (user.trusted) {
             logger.trace { "Automatically confirming reservation ${reservation.id} because user ${user.id} is trusted" }
-            val systemUser = userService.getSystemUser()
-
-            confirmReservation(reservation, systemUser)
+            confirmReservationBySystem(reservation)
         }
 
         if (organization != null && organization.trusted) {
             logger.trace { "Automatically confirming reservation ${reservation.id} because organization ${organization.id} is trusted" }
-            val systemUser = userService.getSystemUser()
-
-            confirmReservation(reservation, systemUser)
+            confirmReservationBySystem(reservation)
         }
+    }
+
+    fun confirmReservationBySystem(reservation: ReservationEntity): ReservationEntity {
+        val systemUser = userService.getSystemUser()
+        return confirmReservation(reservation, systemUser)
     }
 
     fun confirmReservation(reservation: ReservationEntity, approvedBy: UserEntity): ReservationEntity{
@@ -73,14 +77,10 @@ class ReservationService(
             throw CannotPerformThatActionException("Reservation is not in CREATED status")
         }
 
-        // Update status
-        reservation.status = ReservationStatus.CONFIRMED
-        repository.save(reservation)
-
         // Save details
         confirmReservationService.saveConfirmReservationDetails(reservation, approvedBy)
 
-        return reservation
+        return changeStatus(reservation, ReservationStatus.CONFIRMED)
     }
 
     fun confirmReservation(reservationId: Long, approvedBy: Long): ReservationEntity {
@@ -88,6 +88,94 @@ class ReservationService(
         val reservation = findById(reservationId)
 
         return confirmReservation(reservation, user)
+    }
+
+    // Cancel reservation
+    fun requestCancelReservation(reservationId: Long, cancelledBy: Long): ReservationEntity {
+        val reservation = findById(reservationId)
+        val cancelledByUser = userService.findById(cancelledBy)
+
+        return requestCancelReservation(reservation, cancelledByUser)
+    }
+
+    fun requestCancelReservation(reservation: ReservationEntity, cancelledByUser: UserEntity): ReservationEntity {
+        val startAt = reservation.startAt
+        val canceledAt = OffsetDateTime.now(ZoneOffset.UTC)
+
+        if(reservation.status == ReservationStatus.REQUESTED_CANCELLATION) {
+            throw CannotPerformThatActionException("Reservation is already in REQUESTED_CANCELLATION status")
+        }
+
+        if(reservation.status == ReservationStatus.CANCELLED) {
+            throw CannotPerformThatActionException("Reservation is already in CANCELLED status")
+        }
+
+        if(reservation.status == ReservationStatus.REJECTED_CANCELLATION) {
+            throw CannotPerformThatActionException("Reservation is already in REJECTED_CANCELLATION status")
+        }
+
+        val time = Duration.between(canceledAt, startAt)
+
+        // Allow user to cancel a reservation within 24 hours
+        if(time.toHours() > 24) {
+            return cancelReservationBySystem(reservation, cancelledByUser, canceledAt)
+        }
+
+        // Save cancellation request
+        return saveCancellationRequest(reservation, cancelledByUser, canceledAt)
+    }
+
+    fun cancelReservationBySystem(reservation: ReservationEntity, canceledBy: UserEntity, canceledAt: OffsetDateTime): ReservationEntity {
+        val systemUser = userService.getSystemUser()
+        cancelReservationService.saveCancelReservationDetails(reservation,
+            canceledBy,
+            canceledAt,
+            systemUser,
+            canceledAt)
+
+        return changeStatus(reservation, ReservationStatus.CANCELLED)
+    }
+
+    fun saveCancellationRequest(reservation: ReservationEntity, cancelledBy: UserEntity, canceledAt: OffsetDateTime): ReservationEntity {
+        cancelReservationService.saveCancelReservationDetails(reservation,
+            cancelledBy,
+            canceledAt, null, null)
+
+        return changeStatus(reservation, ReservationStatus.REQUESTED_CANCELLATION)
+    }
+
+    // Confirm cancel reservation
+    fun confirmCancelReservation(reservationId: Long, approvedBy: Long): ReservationEntity {
+        val reservation = findById(reservationId)
+        val approvedByUser = userService.findById(approvedBy)
+
+        return confirmCancelReservation(reservation, approvedByUser)
+    }
+
+    fun confirmCancelReservation(reservation: ReservationEntity, approvedBy: UserEntity): ReservationEntity {
+        if(reservation.status != ReservationStatus.REQUESTED_CANCELLATION) {
+            throw CannotPerformThatActionException("Reservation is not in REQUESTED_CANCELLATION status")
+        }
+
+        cancelReservationService.updateCancelReservationDetails(reservation, approvedBy)
+        return changeStatus(reservation, ReservationStatus.CANCELLED)
+    }
+
+    // Reject cancel reservation
+    fun rejectCancelReservation(reservationId: Long, approvedBy: Long): ReservationEntity {
+        val reservation = findById(reservationId)
+        val approvedByUser = userService.findById(approvedBy)
+
+        return rejectCancelReservation(reservation, approvedByUser)
+    }
+
+    fun rejectCancelReservation(reservation: ReservationEntity, approvedBy: UserEntity): ReservationEntity {
+        if(reservation.status != ReservationStatus.REQUESTED_CANCELLATION) {
+            throw CannotPerformThatActionException("Reservation is not in REQUESTED_CANCELLATION status")
+        }
+
+        cancelReservationService.updateCancelReservationDetails(reservation, approvedBy)
+        return changeStatus(reservation, ReservationStatus.REJECTED_CANCELLATION)
     }
 
     // Prepare request
@@ -101,87 +189,17 @@ class ReservationService(
         }
     }
 
-    // VALIDATIONS
+    // VALIDATION
     fun validate(request: CreateReservationRequest) {
-        validateOrganizationMembership(request)
-        isStartAtInFuture(request)
-        isRoomAvailable(request)
-        isReservationInAllowedRange(request)
-        isDurationValid(request)
+
+        val validator = CreateReservationValidation(organizationService, repository)
+        validator.validate(request)
     }
 
-    fun validateOrganizationMembership(request: CreateReservationRequest): Boolean {
-        if(request.organization == null && request.organizationId == null) {
-            return true
-        }
 
-        val organization = request.organization!!
-        val user = request.reservedByUser!!
-
-        try {
-            organizationService.isMember(user, organization)
-        }
-        catch (e: Exception) {
-            throw CannotPerformThatActionException("User with ${user.id} is not a member of the organization ${organization.name}")
-        }
-
-        return true
-    }
-
-    fun isRoomAvailable(request: CreateReservationRequest): Boolean {
-        val reservations = repository.findOverlappingReservations(request.room!!.id!!, request.startAt, request.endAt!!)
-
-        if(reservations.isNotEmpty()) {
-            throw CannotPerformThatActionException("Room ${request.room!!.name} is not available at ${request.startAt} - ${request.endAt}")
-        }
-
-        return true
-    }
-
-    fun isStartAtInFuture(reservation: CreateReservationRequest): Boolean {
-        val startAt = reservation.startAt
-        val now = OffsetDateTime.now()
-
-        if (startAt.isBefore(now)) {
-            throw CannotPerformThatActionException("Can not create reservation in the past")
-        }
-
-        return true
-    }
-
-    fun isReservationInAllowedRange(reservation: CreateReservationRequest): Boolean {
-        val startAt = reservation.startAt
-        val endAt = reservation.startAt.plusMinutes(reservation.duration.toMinutes())
-
-        // Make sure that reservation is within allowed hours
-        val startAtHour = startAt.hour
-        val endAtHour = endAt.hour
-
-        val serviceStartHours = 10
-        val serviceEndHours = 22
-
-        if (startAtHour < serviceStartHours || endAtHour > serviceEndHours) {
-            throw CannotPerformThatActionException("Reservation is outside of allowed hours")
-        }
-
-        // Make sure that reservation is within allowed minutes
-        val startAtMinute = startAt.minute
-        val endAtMinute = endAt.minute
-
-        if (startAtMinute % 30 != 0) {
-            throw CannotPerformThatActionException("Reservation time is not on a 30-minute interval")
-        }
-
-        return true
-    }
-
-    fun isDurationValid(request: CreateReservationRequest): Boolean {
-        val duration = request.duration
-
-        if (duration.toMinutes() % 60 != 0L) {
-            throw CannotPerformThatActionException("Duration must be a multiple of 60 minutes")
-        }
-
-        return true
+    fun changeStatus(reservation: ReservationEntity, status: ReservationStatus): ReservationEntity {
+        logger.trace { "Changing reservation ${reservation.id} status from ${reservation.status} to $status" }
+        reservation.status = status
+        return repository.save(reservation)
     }
 }

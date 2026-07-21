@@ -1,4 +1,4 @@
-package site.komuna.reserve.reservation.confirm.model
+package site.komuna.reserve.reservation.confirm
 
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -12,7 +12,6 @@ import jakarta.persistence.Table
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
-import java.time.ZoneId
 import java.time.ZoneOffset
 
 @Entity

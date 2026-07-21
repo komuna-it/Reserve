@@ -49,4 +49,36 @@ class ReservationController(
 
         return ResponseEntity.ok(ReservationDto(response))
     }
+
+    @PostMapping("/requestCancel/{reservationId}")
+    fun requestCancelReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+        val cancelledBy = authentication.name.toLong()
+
+        logger.info { "Received a request from user id ${authentication.name} to request cancellation of reservation with id: $reservationId" }
+        val response = service.requestCancelReservation(reservationId, cancelledBy)
+
+        return ResponseEntity.ok(ReservationDto(response))
+    }
+
+    @PostMapping("/confirmCancel/{reservationId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun confirmCancelReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+        val cancelledBy = authentication.name.toLong()
+
+        logger.info { "Received a request from user id ${authentication.name} to APPROVE request cancellation of reservation with id: $reservationId" }
+        val response = service.confirmCancelReservation(reservationId, cancelledBy)
+
+        return ResponseEntity.ok(ReservationDto(response))
+    }
+
+    @PostMapping("/rejectCancel/{reservationId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun rejectCancelReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+        val cancelledBy = authentication.name.toLong()
+
+        logger.info { "Received a request from user id ${authentication.name} to REJECT request cancellation of reservation with id: $reservationId" }
+        val response = service.rejectCancelReservation(reservationId, cancelledBy)
+
+        return ResponseEntity.ok(ReservationDto(response))
+    }
 }

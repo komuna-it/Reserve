@@ -11,6 +11,7 @@ class ReservationDto(
     val endAt: OffsetDateTime,
     val duration: Long,
     val reservedBy: Long,
+    val status: ReservationStatus,
 ) {
 
     constructor(reservation: ReservationEntity) : this(
@@ -20,6 +21,7 @@ class ReservationDto(
         startAt = reservation.startAt,
         endAt = reservation.endAt,
         duration = Duration.between(reservation.startAt, reservation.endAt).toMinutes(),
-        reservedBy = reservation.reservedBy.id!!
+        reservedBy = reservation.reservedBy.id!!,
+        status = reservation.status
     )
 }

@@ -1,7 +1,6 @@
 package site.komuna.reserve.reservation.confirm
 
 import org.springframework.stereotype.Service
-import site.komuna.reserve.reservation.confirm.model.ConfirmReservationEntity
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.user.model.UserEntity
 

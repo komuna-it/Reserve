@@ -1,279 +1,166 @@
 package site.komuna.reserve.reservation
 
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
-import io.mockk.verifySequence
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
-import site.komuna.reserve.common.exception.OrganizationMemberNotFoundException
 import site.komuna.reserve.organization.OrganizationService
-import site.komuna.reserve.organization.model.OrganizationEntity
+import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
-import site.komuna.reserve.reservation.model.CreateReservationRequest
+import site.komuna.reserve.reservation.model.ReservationEntity
+import site.komuna.reserve.reservation.model.ReservationStatus
 import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
-import java.time.Duration
 import java.time.OffsetDateTime
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
 
 class ReservationServiceTests {
 
-    val repository = mockk<ReservationRepository>()
-    val organizationService = mockk<OrganizationService>()
-    val confirmReservationService = mockk<ConfirmReservationService>()
-    val roomService = mockk<RoomService>()
-    val userService = mockk<UserService>()
+    private val repository: ReservationRepository = mockk()
+    private val confirmReservationService: ConfirmReservationService = mockk()
+    private val cancelReservationService: CancelReservationService = mockk()
+    private val organizationService: OrganizationService = mockk()
+    private val roomService: RoomService = mockk()
+    private val userService: UserService = mockk()
 
-    // Test method validateOrganizationMembership
-    @Test
-    fun memberOfOrganizationShouldReturnOrganization() {
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
+    private val service = ReservationService(
+        repository,
+        confirmReservationService,
+        cancelReservationService,
+        organizationService,
+        roomService,
+        userService
+    )
 
-        val user = mockk<UserEntity>()
-        val request = mockk<CreateReservationRequest>()
-        val organization = mockk<OrganizationEntity>()
+    @ParameterizedTest
+    @EnumSource(
+        value = ReservationStatus::class,
+        names = [
+            "REQUESTED_CANCELLATION",
+            "CANCELLED",
+            "REJECTED_CANCELLATION"
+        ]
+    )
+    fun requestCancelForCanceledReservation(status: ReservationStatus) {
 
-        every { organizationService.getOrganization(1L) } returns organization
-        every { organizationService.isMember(user, organization) } returns true
-        every { request.organizationId } returns 1L
-        every { request.reservedByUser } returns user
-        every { request.organization } returns organization
-
-        // Act
-        val result = service.validateOrganizationMembership(request)
-
-        // Assert
-        assertTrue(result)
-        verifySequence {
-            organizationService.isMember(user, organization)
-        }
-    }
-
-    @Test
-    fun throwExceptionWhenUserIsNotMemberOfOrganization() {
+        val reservation: ReservationEntity = mockk()
+        val cancelledByUser: UserEntity = mockk()
 
         // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
-
-        val user = mockk<UserEntity>()
-        val request = mockk<CreateReservationRequest>()
-        val organization = mockk<OrganizationEntity>()
-
-        every { organizationService.isMember(user, organization) } throws OrganizationMemberNotFoundException(1L, 1L)
-        every { user.id } returns 1L
-        every { organization.name } returns "Test organization"
-        every { request.organization } returns organization
-        every { request.reservedByUser } returns user
-
-        // Act and Assert
-        assertThrows<CannotPerformThatActionException> {
-            service.validateOrganizationMembership(request)
-        }
-    }
-
-    @Test
-    fun requestNotConnectedToOrganization() {
-
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
-
-        val user = mockk<UserEntity>()
-        val request = mockk<CreateReservationRequest>()
-        val organization = mockk<OrganizationEntity>()
-
-        every { request.organizationId } returns null
-        every { organizationService.getOrganization(1L) } returns organization
-        every { organizationService.isMember(user, organization) } returns true
-        every { request.reservedByUser } returns user
-        every { request.organizationId } returns null
-        every { request.organization } returns null
-        every { request.reservedByUser } returns user
-
-        // Act
-        val result = service.validateOrganizationMembership(request)
-
-        // Assert
-        assertTrue(result)
-    }
-
-    // Test method isRoomAvailable
-    @Test
-    fun roomIsTaken() {
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
-
-        val request = mockk<CreateReservationRequest>()
-
-        every {repository.findOverlappingReservations(1L, any(), any())} returns listOf(mockk())
-        every {request.room!!.id} returns 1L
-        every {request.room!!.name} returns "Test room"
-        every {request.startAt} returns OffsetDateTime.now()
-        every {request.endAt} returns OffsetDateTime.now().plusHours(1)
+        every {reservation.status } returns status
+        every {reservation.startAt } returns OffsetDateTime.now()
 
         // Act
         // Assert
         assertThrows<CannotPerformThatActionException> {
-            service.isRoomAvailable(request)
+            service.requestCancelReservation(reservation, cancelledByUser)
         }
     }
 
     @Test
-    fun roomIsAvailable() {
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
+    fun autoCancellation() {
+        // ARRANGE
+        val reservation: ReservationEntity = mockk(relaxed = true)
+        val cancelledByUser: UserEntity = mockk()
+        val systemUser: UserEntity = mockk()
 
-        val request = mockk<CreateReservationRequest>()
+        every { reservation.status } returns ReservationStatus.CONFIRMED
+        every { reservation.startAt } returns OffsetDateTime.now().plusDays(12)
 
-        every {repository.findOverlappingReservations(1L, any(), any())} returns listOf()
-        every {request.room!!.id} returns 1L
-        every {request.room!!.name} returns "Test room"
-        every {request.startAt} returns OffsetDateTime.now()
-        every {request.endAt} returns OffsetDateTime.now().plusHours(1)
+        // setter
+        every { reservation.status = ReservationStatus.CANCELLED } just Runs
 
-        // Act
-        val result = service.isRoomAvailable(request)
-        // Assert
-        assertTrue(result)
-    }
+        every { userService.getSystemUser() } returns systemUser
+        every {
+            cancelReservationService.saveCancelReservationDetails(
+                reservation,
+                cancelledByUser,
+                any(),
+                systemUser,
+                any()
+            )
+        } just Runs
 
-    // Test method isReservationInFuture
-    @Test
-    fun reservationInTheFuture() {
+        every { repository.save(reservation) } returns reservation
 
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
+        // ACT
+        val result = service.requestCancelReservation(reservation, cancelledByUser)
 
-        val reservation = mockk<CreateReservationRequest>()
+        // ASSERT
+        assertEquals(reservation, result)
 
-        every {reservation.startAt} returns OffsetDateTime.now().plusDays(1)
-
-        // Act
-        val result = service.isStartAtInFuture(reservation)
-
-        // Assert
-        assertTrue(result)
-    }
-
-    @Test
-    fun reservationNotInTheFuture() {
-
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
-
-        val reservation = mockk<CreateReservationRequest>()
-
-        every {reservation.startAt} returns OffsetDateTime.now().minusDays(1)
-
-        // Act
-        // Assert
-        assertThrows<CannotPerformThatActionException> {
-            service.isStartAtInFuture(reservation)
+        verify {
+            reservation.status = ReservationStatus.CANCELLED
         }
-    }
 
-    // Test method isReservationInAllowedRange
-    @Test
-    fun reservationInAllowedRange() {
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
-
-        val reservation = mockk<CreateReservationRequest>()
-
-        every {reservation.startAt} returns OffsetDateTime.now().withHour(11).withMinute(0)
-        every {reservation.duration} returns Duration.ofHours(1)
-
-        // Act
-        val result = service.isReservationInAllowedRange(reservation)
-
-        // Assert
-        assertTrue(result)
-    }
-
-    @Test
-    fun reservationNotInAllowedRangeBeforeStart() {
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
-
-        val reservation = mockk<CreateReservationRequest>()
-
-        every {reservation.startAt} returns OffsetDateTime.now().withHour(9).withMinute(0)
-        every {reservation.duration} returns Duration.ofHours(1)
-
-        // Act
-        // Assert
-        assertThrows<CannotPerformThatActionException> {
-            service.isReservationInAllowedRange(reservation)
+        verify {
+            userService.getSystemUser()
+            cancelReservationService.saveCancelReservationDetails(
+                reservation,
+                cancelledByUser,
+                any(),
+                systemUser,
+                any()
+            )
+            repository.save(reservation)
         }
     }
 
     @Test
-    fun reservationNotInAllowedRangeAfterStart() {
+    fun shouldSaveCancellationRequestWhenReservationStartsInLessThan6Hours() {
         // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
+        val reservation: ReservationEntity = mockk(relaxed = true)
+        val cancelledByUser: UserEntity = mockk()
 
-        val reservation = mockk<CreateReservationRequest>()
+        every { reservation.status } returns ReservationStatus.CONFIRMED
+        every { reservation.startAt } returns OffsetDateTime.now().plusHours(6)
 
-        every {reservation.startAt} returns OffsetDateTime.now().withHour(20).withMinute(0)
-        every {reservation.duration} returns Duration.ofHours(3)
+        every { reservation.status = ReservationStatus.REQUESTED_CANCELLATION } just Runs
+        every { repository.save(reservation) } returns reservation
+
+        every {
+            cancelReservationService.saveCancelReservationDetails(
+                reservation,
+                cancelledByUser,
+                any(),
+                any(),
+                any()
+            )
+        } just Runs
 
         // Act
+        val result = service.requestCancelReservation(reservation, cancelledByUser)
+
         // Assert
-        assertThrows<CannotPerformThatActionException> {
-            service.isReservationInAllowedRange(reservation)
+        assertEquals(reservation, result)
+
+        verify(exactly = 1) {
+            reservation.status = ReservationStatus.REQUESTED_CANCELLATION
         }
-    }
 
-    @Test
-    fun reservationNotInAllowedInterval() {
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
-
-        val reservation = mockk<CreateReservationRequest>()
-
-        every {reservation.startAt} returns OffsetDateTime.now().withHour(20).withMinute(25)
-        every {reservation.duration} returns Duration.ofHours(3)
-
-        // Act
-        // Assert
-        assertThrows<CannotPerformThatActionException> {
-            service.isReservationInAllowedRange(reservation)
+        verify(exactly = 1) {
+            cancelReservationService.saveCancelReservationDetails(
+                reservation,
+                cancelledByUser,
+                any(),
+                any(),
+                any()
+            )
         }
-    }
 
-    // Test method isDurationValid
-    @Test
-    fun durationIsWithinAllowedRange() {
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
+        verify(exactly = 1) {
+            repository.save(reservation)
+        }
 
-        val request = mockk<CreateReservationRequest>()
-
-        every {request.duration} returns Duration.ofHours(2)
-
-        // Act
-        val result = service.isDurationValid(request)
-
-        // Assert
-        assertTrue(result)
-    }
-
-    @Test
-    fun durationIsNotWithinAllowedRange() {
-        // Arrange
-        val service = ReservationService(repository, confirmReservationService, organizationService, roomService, userService)
-
-        val request = mockk<CreateReservationRequest>()
-
-        every {request.duration} returns Duration.ofMinutes(90)
-
-        // Act
-        // Assert
-        assertThrows<CannotPerformThatActionException> {
-            service.isDurationValid(request)
+        verify(exactly = 0) {
+            userService.getSystemUser()
         }
     }
 }
