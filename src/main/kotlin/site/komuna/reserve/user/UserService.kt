@@ -92,6 +92,17 @@ class UserService(
         return banService.banUser(user, bannedBy, reason, duration)
     }
 
+    fun setTrusted(userID: Long, trusted: Boolean): UserEntity {
+        val user = findById(userID)
+
+        return setTrusted(user, trusted)
+    }
+
+    fun setTrusted(user: UserEntity, trusted: Boolean): UserEntity {
+        user.trusted = trusted
+        return repository.save(user)
+    }
+
     // get methods
     fun findById(id: Long): UserEntity {
         return repository.findById(id).orElseThrow { UserNotFoundException(id) }

@@ -128,6 +128,16 @@ class OrganizationService(
         repository.delete(organization)
     }
 
+    fun setTrusted(organizationId: Long, trusted: Boolean): OrganizationEntity {
+        val organization = getOrganization(organizationId)
+        return setTrusted(organization, trusted)
+    }
+
+    fun setTrusted(organization: OrganizationEntity, trusted: Boolean): OrganizationEntity {
+        organization.trusted = trusted
+        return repository.save(organization)
+    }
+
     // ====================================================================================================
     fun isMember(userId: Long, organizationId: Long): Boolean {
         val organization = getOrganization(organizationId)
