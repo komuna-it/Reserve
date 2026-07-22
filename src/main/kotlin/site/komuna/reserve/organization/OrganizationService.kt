@@ -14,16 +14,15 @@ import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberRole
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
-import site.komuna.reserve.organization.repository.OrganizationRepository
-import site.komuna.reserve.organization.repository.OrganizationSearchRepository
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
+import jakarta.persistence.criteria.Predicate
+import org.springframework.data.jpa.domain.Specification
 
 @Service
 class OrganizationService(
     private val repository: OrganizationRepository,
-    private val searchRepository: OrganizationSearchRepository,
     private val organizationMemberService: OrganizationMemberService,
     private val userService: UserService,
 ) {
@@ -33,7 +32,11 @@ class OrganizationService(
 
     fun getOrganizations(filter: SearchOrganizationFilter, pageable: Pageable): Page<OrganizationDto> {
         prepareSearch(filter)
-        return searchRepository.search(filter, pageable)
+
+        val specification = specification(filter)
+        val page = repository.findAll(specification, pageable)
+
+        return page
             .map { organization ->
                 if (!filter.fetchMembers) {
                     OrganizationDto(organization)
@@ -53,6 +56,25 @@ class OrganizationService(
                 }
             }
     }
+
+    fun specification(filter: SearchOrganizationFilter) =
+        Specification<OrganizationEntity> { root, _, cb ->
+            val predicates = mutableListOf<Predicate>()
+
+            filter.organizationId?.let {
+                predicates += cb.equal(root.get<Long>("id"), it)
+            }
+
+            if (filter.ownerId != null || filter.userId != null) {
+                predicates += root.get<Long>("id").`in`(filter.organizationsIds)
+            }
+
+            filter.name?.let {
+                predicates += cb.equal(root.get<String>("name"), it)
+            }
+
+            cb.and(*predicates.toTypedArray())
+        }
 
     fun createOrganization(request: CreateOrganizationRequest): OrganizationEntity {
         val user = userService.findById(request.ownerId!!)

@@ -1,16 +1,23 @@
 package site.komuna.reserve.reservation
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import site.komuna.reserve.reservation.model.CreateReservationRequest
 import site.komuna.reserve.reservation.model.ReservationDto
+import site.komuna.reserve.reservation.model.ReservationStatus
+import site.komuna.reserve.reservation.model.ReservationType
+import site.komuna.reserve.reservation.model.SearchReservationsFilter
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
@@ -21,6 +28,41 @@ class ReservationController(
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
+    }
+
+    @GetMapping("")
+    fun searchReservations(
+        @RequestParam(required = false) reservationId: Long?,
+        @RequestParam(required = false) userId: Long?,
+        @RequestParam(required = false) reservedBy: Long?,
+        @RequestParam(required = false) organizationsId: List<Long>?,
+        @RequestParam(defaultValue = "false") future: Boolean,
+        @RequestParam(defaultValue = "false") privateReservation: Boolean,
+        @RequestParam(required = false) roomId: Long?,
+        @RequestParam(required = false) startAtAfter: OffsetDateTime?,
+        @RequestParam(required = false) startAtBefore: OffsetDateTime?,
+        @RequestParam(required = false) status: List<String>?,
+        @RequestParam(required = false) type: List<String>?,
+        pageable: Pageable
+    ): Page<ReservationDto> {
+
+        val filter = SearchReservationsFilter(
+            reservationId = reservationId,
+            userId = userId,
+            reservedBy = reservedBy,
+            organizationsId = organizationsId?.toMutableList() ?: mutableListOf(),
+            future = future,
+            private = privateReservation,
+            roomId = roomId,
+            startAtAfter = startAtAfter,
+            startAtBefore = startAtBefore,
+            status = status?.map { ReservationStatus.valueOf(it) }?.toMutableList() ?: mutableListOf(),
+            type = type?.map { ReservationType.valueOf(it) }?.toMutableList() ?: mutableListOf(),
+        )
+
+        val response = service.getReservations(filter, pageable).map { ReservationDto(it) }
+
+        return response
     }
 
     @PostMapping("")

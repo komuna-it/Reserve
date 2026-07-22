@@ -1,17 +1,25 @@
 package site.komuna.reserve.reservation
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.persistence.criteria.Predicate
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.exception.ReservationNotFoundException
 import site.komuna.reserve.organization.OrganizationService
+import site.komuna.reserve.organization.model.OrganizationEntity
+import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
 import site.komuna.reserve.reservation.model.CreateReservationRequest
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.reservation.model.ReservationStatus
+import site.komuna.reserve.reservation.model.SearchReservationsFilter
 import site.komuna.reserve.reservation.validation.CreateReservationValidation
 import site.komuna.reserve.room.RoomService
+import site.komuna.reserve.room.model.RoomEntity
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
@@ -31,12 +39,71 @@ class ReservationService(
         private val logger = KotlinLogging.logger {}
     }
 
+    fun getReservations(filter: SearchReservationsFilter, pageable: Pageable): Page<ReservationEntity> {
+        prepareSearch(filter)
+
+        val spec = specification(filter)
+
+        return repository.findAll(spec, pageable)
+    }
+
+    fun specification(filter: SearchReservationsFilter) =
+        Specification<ReservationEntity> { root, _, cb ->
+
+            val predicates = mutableListOf<Predicate>()
+
+            filter.reservationId?.let {
+                predicates += cb.equal(root.get<Long>("id"), it)
+            }
+
+            filter.reservedBy?.let {
+                predicates += cb.equal(root.get<Long>("reservedBy"), it)
+            }
+
+            filter.userId?.let {
+                val organization = root.join<ReservationEntity, OrganizationEntity>("organization")
+
+                predicates += organization.get<Long>("id").`in`(filter.organizationsId)
+            }
+
+            if (filter.future) {
+                predicates += cb.greaterThanOrEqualTo(
+                    root.get("startAt"),
+                    OffsetDateTime.now(ZoneOffset.UTC)
+                )
+
+            }
+
+            if (filter.private) {
+                predicates += cb.isNull(root.get<Long>("organization"))
+            }
+
+            filter.roomId?.let {
+                val room = root.join<ReservationEntity, RoomEntity>("room")
+                predicates += cb.equal(room.get<Long>("id"), filter.roomId)
+            }
+
+            filter.startAtAfter?.let {
+                predicates += cb.greaterThanOrEqualTo(root.get<OffsetDateTime>("startAt"), filter.startAtAfter)
+            }
+
+            filter.startAtBefore?.let {
+                predicates += cb.lessThanOrEqualTo(root.get<OffsetDateTime>("startAt"), filter.startAtBefore)
+            }
+
+            filter.status.takeIf { it.isNotEmpty() }?.let {
+                predicates += root.get<ReservationStatus>("status").`in`(it)
+            }
+
+            cb.and(*predicates.toTypedArray())
+        }
+
     fun findById(id: Long): ReservationEntity {
         return repository.findById(id).orElseThrow { ReservationNotFoundException(id) }
     }
 
     fun createReservation(request: CreateReservationRequest): ReservationEntity {
-        prepareRequest(request)
+        prepareCreateRequest(request)
         validate(request)
 
         val response = repository.save(ReservationEntity(request))
@@ -48,7 +115,6 @@ class ReservationService(
         return response
     }
 
-    // Confirm reservation
     /**
      * Reservation could be automatically confirmed if a user or organization is trusted
      */
@@ -179,7 +245,7 @@ class ReservationService(
     }
 
     // Prepare request
-    fun prepareRequest(request: CreateReservationRequest) {
+    fun prepareCreateRequest(request: CreateReservationRequest) {
         request.reservedByUser = userService.findById(request.reservedByUserId!!)
         request.room = roomService.getRoom(request.roomId)
         request.endAt = request.startAt.plusMinutes(request.duration.toMinutes())
@@ -189,6 +255,7 @@ class ReservationService(
         }
     }
 
+
     // VALIDATION
     fun validate(request: CreateReservationRequest) {
 
@@ -196,10 +263,20 @@ class ReservationService(
         validator.validate(request)
     }
 
-
     fun changeStatus(reservation: ReservationEntity, status: ReservationStatus): ReservationEntity {
         logger.trace { "Changing reservation ${reservation.id} status from ${reservation.status} to $status" }
         reservation.status = status
         return repository.save(reservation)
     }
+
+    private fun prepareSearch(filter: SearchReservationsFilter): SearchReservationsFilter {
+        if (filter.userId != null) {
+            val organizationFilter = SearchOrganizationFilter(ownerId = filter.userId, userId = filter.userId)
+
+            filter.organizationsId = organizationService.getOrganizations(organizationFilter, Pageable.unpaged()).map { it.id!! }.toMutableList()
+        }
+
+        return filter
+    }
+
 }

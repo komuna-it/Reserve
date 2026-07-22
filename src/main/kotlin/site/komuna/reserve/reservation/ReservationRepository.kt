@@ -1,13 +1,17 @@
 package site.komuna.reserve.reservation
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import site.komuna.reserve.reservation.model.ReservationEntity
 import java.time.OffsetDateTime
 
 @Repository
-interface ReservationRepository: JpaRepository<ReservationEntity, Long> {
+interface ReservationRepository:
+    JpaRepository<ReservationEntity, Long>,
+    JpaSpecificationExecutor<ReservationEntity>
+{
 
     @Query("""
         SELECT r 
