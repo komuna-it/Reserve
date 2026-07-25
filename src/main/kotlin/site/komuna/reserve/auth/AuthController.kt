@@ -17,12 +17,15 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import site.komuna.reserve.auth.request.LoginRequest
 import site.komuna.reserve.auth.request.RegisterRequest
+import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
+import site.komuna.reserve.user.model.UserEntity
 
 @RestController
 @RequestMapping("/auth")
 class AuthController(
-    private val service: AuthService
+    private val service: AuthService,
+    private val userService : UserService
 ) {
 
     companion object {
@@ -37,7 +40,7 @@ class AuthController(
     }
 
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<Long> {
+    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<UserEntity?> {
         logger.info { "Triggered /login for email: ${request.email}" }
         val loginData = service.login(request.email, request.password)
 
@@ -61,7 +64,8 @@ class AuthController(
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
 
-        return ResponseEntity.ok(loginData.userId)
+        val userDto = userService.findByEmail(loginData.userEmail)
+        return ResponseEntity.ok(userDto)
     }
 
 
