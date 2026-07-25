@@ -55,8 +55,8 @@ class UserService(
      * Method assignee user role to a user
      */
     fun assigneeUserRole(id: Long, role: Role, by: String): UserEntity {
-        val targetUser = findById(id) ?: throw UserNotFoundException(id)
-        val sourceUser = findById(by.toLong()) ?: throw UserNotFoundException(by.toLong())
+        val targetUser = findById(id)
+        val sourceUser = findById(by)
 
         if (role == Role.MANAGER) {
             logger.error { "User: ${sourceUser.email} tried to assign Manager role to user: ${targetUser.email}." }
@@ -77,8 +77,8 @@ class UserService(
 
     @Transactional
     fun banUser(id: Long, by: Long, reason: String, duration: Duration): BanEntity {
-        val user = findById(id) ?: throw UserNotFoundException(id)
-        val bannedBy = findById(by) ?: throw UserNotFoundException(by)
+        val user = findById(id)
+        val bannedBy = findById(by)
 
         if (reason.isBlank()) throw ReserveException(HttpStatus.BAD_REQUEST, "Reason is required")
 
@@ -87,12 +87,16 @@ class UserService(
         return banService.banUser(user, bannedBy, reason, duration)
     }
 
-    fun findById(id: Long): UserEntity? {
-        return repository.findById(id).orElse(null)
+    fun findById(id: Long): UserEntity {
+        return repository.findById(id).orElseThrow { UserNotFoundException(id) }
     }
 
-    fun findByEmail(email: String): UserEntity? {
-        return repository.findByEmail(email)
+    fun findById(id: String): UserEntity {
+        return findById(id.toLong())
+    }
+
+    fun findByEmail(email: String): UserEntity {
+        return repository.findByEmail(email).orElseThrow { UserNotFoundException(email) }
     }
 
     fun isEmailTaken(email: String): Boolean {
