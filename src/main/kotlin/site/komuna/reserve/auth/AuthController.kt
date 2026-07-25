@@ -110,4 +110,14 @@ class AuthController(
             ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
     }
+
+    @PostMapping("/logout")
+    fun logout(response: HttpServletResponse): ResponseEntity<Void> {
+        val cleanAccess = ResponseCookie.from("access_token", "").httpOnly(true).path("/").maxAge(0).build()
+        val cleanRefresh = ResponseCookie.from("refresh_token", "").httpOnly(true).path("/auth/refresh").maxAge(0).build()
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cleanAccess.toString())
+        response.addHeader(HttpHeaders.SET_COOKIE, cleanRefresh.toString())
+        return ResponseEntity.ok().build()
+    }
 }
