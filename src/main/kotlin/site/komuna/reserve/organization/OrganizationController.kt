@@ -51,12 +51,13 @@ class OrganizationController(
         return service.getOrganizations(filter, pageable)
     }
 
-    @PostMapping("/")
+    @PostMapping("")
     fun createOrganization(@RequestBody request: CreateOrganizationRequest, authentication: Authentication): ResponseEntity<OrganizationDto> {
         request.ownerId = authentication.name.toLong()
         request.createdAt = OffsetDateTime.now(ZoneOffset.UTC)
 
         logger.info { "Received a request from user id ${request.ownerId} to create a new organization: ${request.name}" }
+        println( "Received a request from user id ${request.ownerId} to create a new organization: ${request.name}" )
 
         val organization = service.createOrganization(request)
 
