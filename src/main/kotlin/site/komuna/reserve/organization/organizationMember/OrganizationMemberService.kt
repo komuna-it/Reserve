@@ -4,6 +4,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.exception.Conflict409
 import site.komuna.reserve.common.exception.OrganizationMemberNotFoundException
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
@@ -52,7 +53,7 @@ class OrganizationMemberService(
         if (membership.role == OrganizationMemberRole.OWNER && role == OrganizationMemberRole.MEMBER) {
             val owners = getOwnersOfOrganization(organization.id!!)
             if (owners.size <= 1) {
-                throw CannotPerformThatActionException("Organization must have at least one owner")
+                throw Conflict409("Organization must have at least one owner")
             }
         }
 
@@ -65,6 +66,12 @@ class OrganizationMemberService(
     }
 
     private fun addUser(organization: OrganizationEntity, user: UserEntity, addedBy: UserEntity, role: OrganizationMemberRole): OrganizationMemberEntity {
+
+
+        if (repository.existsByOrganizationIdAndUserIdAndRole(organization.id!!, user.id!!, role)) {
+                    throw Conflict409("User already exists in the organization!!!")
+        }
+
         val organizationMember = OrganizationMemberEntity(
             organization = organization,
             user = user,
@@ -72,10 +79,6 @@ class OrganizationMemberService(
             role = role,
             addedAt = OffsetDateTime.now(ZoneOffset.UTC),
         )
-
-        if (getOrganizationMember(user,  organization) != null) {
-            throw IllegalArgumentException("User already exists!!!")
-        }
 
 
         return repository.save(organizationMember)
