@@ -39,16 +39,16 @@ class OrganizationMemberService(
     fun assignRole(organization: OrganizationEntity, user: UserEntity, role: OrganizationMemberRole): OrganizationMemberEntity {
         val membership = getOrganizationMember(user, organization)
 
-        // MAKE SURE THAT ORGANIZATION HAS A MEMBER
-        if(role == OrganizationMemberRole.MEMBER) {
+        if (membership.role == OrganizationMemberRole.OWNER && role == OrganizationMemberRole.MEMBER) {
             val owners = getOwnersOfOrganization(organization.id!!)
-            if (owners.size == 1) throw CannotPerformThatActionException("Organization must have at least one owner")
+            if (owners.size <= 1) {
+                throw CannotPerformThatActionException("Organization must have at least one owner")
+            }
         }
 
         membership.role = role
         return repository.save(membership)
     }
-
     fun decommission(organization: OrganizationEntity) {
 
         repository.deleteByOrganizationId(organization.id!!)
@@ -62,6 +62,11 @@ class OrganizationMemberService(
             role = role,
             addedAt = OffsetDateTime.now(ZoneOffset.UTC),
         )
+
+        if (getOrganizationMember(user,  organization) != null) {
+            throw IllegalArgumentException("User already exists!!!")
+        }
+
 
         return repository.save(organizationMember)
     }
