@@ -22,18 +22,16 @@ class CreateReservationValidation(
     }
 
     fun validateOrganizationMembership(request: CreateReservationRequest): Boolean {
-        if(request.organization == null && request.organizationId == null) {
+        if (request.organization == null && request.organizationId == null) {
             return true
         }
 
         val organization = request.organization!!
         val user = request.reservedByUser!!
 
-        try {
-            organizationService.isMember(user, organization)
-        }
-        catch (e: Exception) {
-            throw CannotPerformThatActionException("User with ${user.id} is not a member of the organization ${organization.name}")
+        val isMember = organizationService.isMember(user, organization)
+        if (!isMember) {
+            throw CannotPerformThatActionException("User with id ${user.id} is not a member of organization ${organization.name}")
         }
 
         return true

@@ -11,6 +11,7 @@ import site.komuna.reserve.common.exception.ReservationNotFoundException
 import site.komuna.reserve.organization.OrganizationService
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.model.SearchOrganizationFilter
+import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
 import site.komuna.reserve.reservation.model.CreateReservationRequest
@@ -34,6 +35,7 @@ class ReservationService(
     private val organizationService: OrganizationService,
     private val roomService: RoomService,
     private val userService: UserService,
+    private val organizationMemberService: OrganizationMemberService,
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -271,9 +273,8 @@ class ReservationService(
 
     private fun prepareSearch(filter: SearchReservationsFilter): SearchReservationsFilter {
         if (filter.userId != null) {
-            val organizationFilter = SearchOrganizationFilter(ownerId = filter.userId, userId = filter.userId)
-
-            filter.organizationsId = organizationService.getOrganizations(organizationFilter, Pageable.unpaged()).map { it.id!! }.toMutableList()
+            val userOrganizations = organizationService.getAllOrganizationsForUser(filter.userId!!)
+            filter.organizationsId = userOrganizations.mapNotNull { org -> org.id }.toMutableList()
         }
 
         return filter
