@@ -18,6 +18,8 @@ import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
 import jakarta.persistence.criteria.Predicate
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 
 @Service
@@ -33,25 +35,17 @@ class OrganizationService(
     fun getOrganizations(filter: SearchOrganizationFilter, pageable: Pageable): Page<OrganizationDto> {
         prepareSearch(filter)
 
-        val specification = specification(filter)
-        val page = repository.findAll(specification, pageable)
+        val sortedPageable = PageRequest.of(pageable.pageNumber, pageable.pageSize, Sort.by("name"))
 
-        return page
-            .map { organization ->
+        return repository.findAll(specification(filter), sortedPageable)
+            .map { org ->
                 if (!filter.fetchMembers) {
-                    OrganizationDto(organization)
+                    OrganizationDto(org)
                 } else {
-                    val members =
-                        organizationMemberService.getMembersOfOrganization(organization.id!!)
-                            .map { UserDto(it) }
-                    val owners =
-                        organizationMemberService.getOwnersOfOrganization(organization.id!!)
-                            .map { UserDto(it) }
-
                     OrganizationDto(
-                        organization,
-                        members,
-                        owners
+                        org,
+                        organizationMemberService.getMembersOfOrganization(org.id!!).map { UserDto(it) },
+                        organizationMemberService.getOwnersOfOrganization(org.id!!).map { UserDto(it) }
                     )
                 }
             }
