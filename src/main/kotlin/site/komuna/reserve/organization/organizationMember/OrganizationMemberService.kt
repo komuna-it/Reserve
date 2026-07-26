@@ -1,6 +1,7 @@
 package site.komuna.reserve.organization.organizationMember
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.exception.OrganizationMemberNotFoundException
@@ -31,8 +32,17 @@ class OrganizationMemberService(
         return addUser(organization, user, addedBy, OrganizationMemberRole.OWNER)
     }
 
+    @Transactional
     fun removeMember(organization: OrganizationEntity, user: UserEntity) {
-        val organizationMember = getOrganizationMember(user, organization) ?: return
+        val organizationMember = repository.findByOrganizationIdAndUserId(organization.id!!, user.id!!) ?: return
+
+        if (organizationMember.role == OrganizationMemberRole.OWNER) {
+            val owners = getOwnersOfOrganization(organization.id!!)
+            if (owners.size <= 1) {
+                throw CannotPerformThatActionException("we cannot remove the only owner of the org")
+            }
+        }
+
         repository.delete(organizationMember)
     }
 
