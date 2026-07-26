@@ -24,6 +24,12 @@ class UserController(
         private val logger = KotlinLogging.logger {}
     }
 
+
+    @GetMapping("/all")
+    fun getUsers(): ResponseEntity<List<UserDto>> =
+        ResponseEntity.ok(service.getUsers())
+
+
     @PutMapping("/assigneUser/{id}/role/{role}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun promoteUserToAdmin(@PathVariable id: Long, @PathVariable role: String, authentication: Authentication): ResponseEntity<UserDto> {

@@ -12,6 +12,7 @@ import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
 import site.komuna.reserve.user.ban.BanService
 import site.komuna.reserve.user.ban.model.BanEntity
+import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -37,14 +38,16 @@ class UserService(
         val password = passwordEncoder.encode(request.password)
         val role = Role.USER
 
-        val savedUser = repository.save(UserEntity(
-            email = email,
-            nick = nick,
-            password = password,
-            role = role,
-            created = now,
-            passwordChanged = now
-        ))
+        val savedUser = repository.save(
+            UserEntity(
+                email = email,
+                nick = nick,
+                password = password,
+                role = role,
+                created = now,
+                passwordChanged = now
+            )
+        )
 
         logger.info { "User with email: ${savedUser.email} was created" }
 
@@ -119,8 +122,11 @@ class UserService(
     fun getSystemUser(): UserEntity {
         val users = repository.findByRole(Role.SYSTEM)
 
-        if(users.isEmpty()) throw ReserveException(HttpStatus.NOT_FOUND, "System user not found")
-        if(users.size > 1 ) throw ReserveException(HttpStatus.NOT_FOUND, "We have more than one system user. That should not happen")
+        if (users.isEmpty()) throw ReserveException(HttpStatus.NOT_FOUND, "System user not found")
+        if (users.size > 1) throw ReserveException(
+            HttpStatus.NOT_FOUND,
+            "We have more than one system user. That should not happen"
+        )
 
         return users[0]
     }
@@ -141,4 +147,7 @@ class UserService(
         val ban = banService.isUserBanned(id)
         return ban != null
     }
+
+    fun getUsers(): List<UserDto> =
+        repository.findAll().map(::UserDto)
 }
