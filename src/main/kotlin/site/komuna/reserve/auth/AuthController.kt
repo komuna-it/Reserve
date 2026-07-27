@@ -1,7 +1,6 @@
 package site.komuna.reserve.auth
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpHeaders
@@ -9,7 +8,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
-import org.springframework.security.web.csrf.CsrfTokenRepository
 import org.springframework.web.bind.annotation.CookieValue
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -21,14 +19,13 @@ import site.komuna.reserve.auth.request.LoginRequest
 import site.komuna.reserve.auth.request.RegisterRequest
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
+import site.komuna.reserve.user.model.UserEntity
 
 @RestController
 @RequestMapping("/auth")
 class AuthController(
     private val service: AuthService,
-    private val userService: UserService,
-    private val csrfTokenRepository: CsrfTokenRepository,
-){
+    private val userService: UserService){
 
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -42,7 +39,7 @@ class AuthController(
     }
 
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest, httpRequest: HttpServletRequest, response: HttpServletResponse): ResponseEntity<UserDto> {
+    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<UserDto> {
         logger.info { "Triggered /login for email: ${request.email}" }
         val loginData = service.login(request.email, request.password)
 
@@ -67,13 +64,6 @@ class AuthController(
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
 
         val dto = userService.findByEmail(request.email)
-
-        // new CSRF tokens after every login
-        csrfTokenRepository.saveToken(null, httpRequest, response)
-
-        val newToken = csrfTokenRepository.generateToken(httpRequest)
-        csrfTokenRepository.saveToken(newToken, httpRequest, response)
-
         return ResponseEntity.ok(UserDto(dto))
     }
 
