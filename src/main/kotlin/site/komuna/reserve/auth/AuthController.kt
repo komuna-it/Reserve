@@ -39,7 +39,7 @@ class AuthController(
     }
 
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<UserEntity> {
+    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<UserDto> {
         logger.info { "Triggered /login for email: ${request.email}" }
         val loginData = service.login(request.email, request.password)
 
@@ -64,7 +64,7 @@ class AuthController(
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
 
         val dto = userService.findByEmail(request.email)
-        return ResponseEntity.ok(dto)
+        return ResponseEntity.ok(UserDto(dto))
     }
 
 

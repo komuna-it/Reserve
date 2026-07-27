@@ -85,9 +85,21 @@ class ReservationController(
     fun confirmReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
         val confirmedBy = authentication.name.toLong()
 
-        logger.info { "Received a request from user id ${authentication.name} to confirm reservation with id: $reservationId" }
+        logger.info { "Received a request from user id ${authentication.name} to confirm a reservation with id: $reservationId" }
 
         val response = service.confirmReservation(reservationId, confirmedBy)
+
+        return ResponseEntity.ok(ReservationDto(response))
+    }
+
+    @PostMapping("/reject/{reservationId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun rejectReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+        val confirmedBy = authentication.name.toLong()
+
+        logger.info { "Received a request from user id ${authentication.name} to reject a reservation with id: $reservationId" }
+
+        val response = service.rejectReservationRequest(reservationId, confirmedBy)
 
         return ResponseEntity.ok(ReservationDto(response))
     }

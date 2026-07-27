@@ -53,6 +53,7 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.GET, "/reservations/**").permitAll()
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/rooms/**").permitAll()
+                    .requestMatchers("/sse").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(

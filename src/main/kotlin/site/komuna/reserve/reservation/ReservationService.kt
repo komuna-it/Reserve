@@ -15,12 +15,15 @@ import site.komuna.reserve.organization.organizationMember.OrganizationMemberSer
 import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
 import site.komuna.reserve.reservation.model.CreateReservationRequest
+import site.komuna.reserve.reservation.model.ReservationDto
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.reservation.model.ReservationStatus
 import site.komuna.reserve.reservation.model.SearchReservationsFilter
 import site.komuna.reserve.reservation.validation.CreateReservationValidation
 import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.room.model.RoomEntity
+import site.komuna.reserve.sse.ReserveEvents
+import site.komuna.reserve.sse.SseService
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
@@ -36,6 +39,7 @@ class ReservationService(
     private val roomService: RoomService,
     private val userService: UserService,
     private val organizationMemberService: OrganizationMemberService,
+    private val sseService: SseService
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -112,7 +116,7 @@ class ReservationService(
 
         confirmReservationIfTrusted(response)
 
-        // TODO: Emit event
+        sseService.broadcast(ReserveEvents.RESERVATION_CREATED, ReservationDto(response))
 
         return response
     }
@@ -158,6 +162,27 @@ class ReservationService(
         return confirmReservation(reservation, user)
     }
 
+    fun rejectReservationRequest(reservation: ReservationEntity, rejectedBy: UserEntity): ReservationEntity {
+        if (reservation.status != ReservationStatus.CREATED) {
+            throw CannotPerformThatActionException("Reservation is not in CREATED status")
+        }
+
+        // Save details
+        confirmReservationService.saveRejectReservationDetails(reservation, rejectedBy)
+        val response = changeStatus(reservation, ReservationStatus.REJECTED)
+
+        sseService.broadcast(ReserveEvents.RESERVATION_REJECTED, ReservationDto(response))
+
+        return response
+    }
+
+    fun rejectReservationRequest(reservationId: Long, rejectedBy: Long): ReservationEntity {
+        val user = userService.findById(rejectedBy)
+        val reservation = findById(reservationId)
+
+        return rejectReservationRequest(reservation, user)
+    }
+
     // Cancel reservation
     fun requestCancelReservation(reservationId: Long, cancelledBy: Long): ReservationEntity {
         val reservation = findById(reservationId)
@@ -186,11 +211,15 @@ class ReservationService(
 
         // Allow user to cancel a reservation within 24 hours
         if(time.toHours() > 24) {
-            return cancelReservationBySystem(reservation, cancelledByUser, canceledAt)
+            val response = cancelReservationBySystem(reservation, cancelledByUser, canceledAt)
+            sseService.broadcast(ReserveEvents.RESERVATION_CANCELED, ReservationDto(response))
+            return response
         }
 
         // Save cancellation request
-        return saveCancellationRequest(reservation, cancelledByUser, canceledAt)
+        val response = saveCancellationRequest(reservation, cancelledByUser, canceledAt)
+        sseService.broadcast(ReserveEvents.RESERVATION_CANCEL_REQUESTED, ReservationDto(response))
+        return response
     }
 
     fun cancelReservationBySystem(reservation: ReservationEntity, canceledBy: UserEntity, canceledAt: OffsetDateTime): ReservationEntity {
@@ -226,7 +255,9 @@ class ReservationService(
         }
 
         cancelReservationService.updateCancelReservationDetails(reservation, approvedBy)
-        return changeStatus(reservation, ReservationStatus.CANCELLED)
+        val response = changeStatus(reservation, ReservationStatus.CANCELLED)
+        sseService.broadcast(ReserveEvents.RESERVATION_CANCELED, ReservationDto(response))
+        return response
     }
 
     // Reject cancel reservation
@@ -243,7 +274,9 @@ class ReservationService(
         }
 
         cancelReservationService.updateCancelReservationDetails(reservation, approvedBy)
-        return changeStatus(reservation, ReservationStatus.REJECTED_CANCELLATION)
+        val response = changeStatus(reservation, ReservationStatus.REJECTED_CANCELLATION)
+        sseService.broadcast(ReserveEvents.RESERVATION_CANCEL_REJECTED, ReservationDto(response))
+        return response
     }
 
     // Prepare request

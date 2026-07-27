@@ -11,11 +11,13 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.organization.OrganizationService
+import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.reservation.model.ReservationStatus
 import site.komuna.reserve.room.RoomService
+import site.komuna.reserve.sse.SseService
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
@@ -29,6 +31,8 @@ class ReservationServiceTests {
     private val organizationService: OrganizationService = mockk()
     private val roomService: RoomService = mockk()
     private val userService: UserService = mockk()
+    private val organizationMemberService: OrganizationMemberService = mockk()
+    private val sseService: SseService = mockk()
 
     private val service = ReservationService(
         repository,
@@ -36,7 +40,9 @@ class ReservationServiceTests {
         cancelReservationService,
         organizationService,
         roomService,
-        userService
+        userService,
+        organizationMemberService,
+        sseService
     )
 
     @ParameterizedTest
