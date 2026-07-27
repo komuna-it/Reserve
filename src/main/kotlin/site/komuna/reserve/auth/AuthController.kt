@@ -17,13 +17,15 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import site.komuna.reserve.auth.request.LoginRequest
 import site.komuna.reserve.auth.request.RegisterRequest
+import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
+import site.komuna.reserve.user.model.UserEntity
 
 @RestController
 @RequestMapping("/auth")
 class AuthController(
-    private val service: AuthService
-) {
+    private val service: AuthService,
+    private val userService: UserService){
 
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -37,7 +39,7 @@ class AuthController(
     }
 
     @PostMapping("/login")
-    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<Long> {
+    fun login(@RequestBody request: LoginRequest, response: HttpServletResponse): ResponseEntity<UserEntity> {
         logger.info { "Triggered /login for email: ${request.email}" }
         val loginData = service.login(request.email, request.password)
 
@@ -61,7 +63,8 @@ class AuthController(
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
 
-        return ResponseEntity.ok(loginData.userId)
+        val dto = userService.findByEmail(request.email)
+        return ResponseEntity.ok(dto)
     }
 
 
@@ -109,5 +112,15 @@ class AuthController(
             logger.error { "IllegalStateException $e" }
             ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
+    }
+
+    @PostMapping("/logout")
+    fun logout(response: HttpServletResponse): ResponseEntity<Void> {
+        val cleanAccess = ResponseCookie.from("access_token", "").httpOnly(true).path("/").maxAge(0).build()
+        val cleanRefresh = ResponseCookie.from("refresh_token", "").httpOnly(true).path("/auth/refresh").maxAge(0).build()
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cleanAccess.toString())
+        response.addHeader(HttpHeaders.SET_COOKIE, cleanRefresh.toString())
+        return ResponseEntity.ok().build()
     }
 }

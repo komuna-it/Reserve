@@ -10,6 +10,7 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @Entity
 @Table(name = "refresh_tokens")
@@ -25,6 +26,6 @@ class RefreshTokenEntity (
     var user: UserEntity,
 
     var expires: OffsetDateTime,
-    var createdAt: OffsetDateTime,
+    var createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
 ) {
 }

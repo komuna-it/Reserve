@@ -9,12 +9,14 @@ class OrganizationDto(
     var createdAt: String,
     var members: List<UserDto>? = null,
     var owners: List<UserDto>? = null,
+    var trusted: Boolean = false,
 ) {
 
     constructor(organizationEntity: OrganizationEntity) : this(
         organizationEntity.id,
         organizationEntity.name,
         organizationEntity.created.toString(),
+        trusted = organizationEntity.trusted
     )
 
     constructor(organizationDto: OrganizationEntity, members: List<UserDto>, owners: List<UserDto>): this(
@@ -22,6 +24,7 @@ class OrganizationDto(
         name = organizationDto.name,
         createdAt = organizationDto.created.toString(),
         members = members,
-        owners = owners
+        owners = owners,
+        trusted = organizationDto.trusted
     )
 }

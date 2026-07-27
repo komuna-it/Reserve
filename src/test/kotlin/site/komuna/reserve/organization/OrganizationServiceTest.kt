@@ -12,8 +12,6 @@ import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberRole
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
-import site.komuna.reserve.organization.repository.OrganizationRepository
-import site.komuna.reserve.organization.repository.OrganizationSearchRepository
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.util.Optional
@@ -21,14 +19,15 @@ import java.util.Optional
 class OrganizationServiceTest {
 
     private val repository = mockk<OrganizationRepository>()
-    private val searchRepository = mockk<OrganizationSearchRepository>()
     private val userService = mockk<UserService>()
     private val organizationMemberService = mockk<OrganizationMemberService>()
+
+    val service = OrganizationService(repository, organizationMemberService, userService)
 
     @Test
     fun addMemberShouldAddUserToOrganization() {
         // Arrange
-        val service = OrganizationService(repository, searchRepository, organizationMemberService, userService)
+
 
         val organization = mockk<OrganizationEntity>()
         val user = mockk<UserEntity>()
@@ -87,8 +86,6 @@ class OrganizationServiceTest {
     @Test
     fun addMemberShouldThrowWhenUserIsNotMember() {
         // Arrange
-        val service = OrganizationService(repository, searchRepository, organizationMemberService, userService)
-
         val organization = mockk<OrganizationEntity> {
             every { name } returns "My organization"
         }
@@ -130,8 +127,6 @@ class OrganizationServiceTest {
     @Test
     fun removeMemberShouldRemoveUserFromOrganization() {
         // Arrange
-        val service = OrganizationService(repository, searchRepository, organizationMemberService, userService)
-
         val organization = mockk<OrganizationEntity>()
         val user = mockk<UserEntity>()
         val removedBy = mockk<UserEntity>()
@@ -189,7 +184,6 @@ class OrganizationServiceTest {
     @Test
     fun removeMemberShouldThrowWhenRemovedByIsNotOwner() {
         // Arrange
-        val service = OrganizationService(repository, searchRepository, organizationMemberService, userService)
 
         val organization = mockk<OrganizationEntity> {
             every { name } returns "Organization"
@@ -236,7 +230,6 @@ class OrganizationServiceTest {
     @Test
     fun removeMemberShouldThrowWhenRemovingOwner() {
         // Arrange
-        val service = OrganizationService(repository, searchRepository, organizationMemberService, userService)
 
         val organization = mockk<OrganizationEntity>()
 

@@ -7,10 +7,12 @@ class UserDto(
     val email: String,
     val nick: String,
     val role: Role,
+    var trusted: Boolean = false,
 ) {
     constructor(userEntity: UserEntity) : this(
         userEntity.id!!,
         userEntity.email,
         userEntity.nick,
-        userEntity.role)
+        userEntity.role,
+        trusted = userEntity.trusted)
 }

@@ -1,10 +1,14 @@
 package site.komuna.reserve.organization
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import jakarta.transaction.Transactional
-import org.springframework.stereotype.Service
+import jakarta.persistence.criteria.Predicate
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.jpa.domain.Specification
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.exception.OrganizationNotFoundException
 import site.komuna.reserve.organization.model.CreateOrganizationRequest
@@ -14,8 +18,6 @@ import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberRole
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
-import site.komuna.reserve.organization.repository.OrganizationRepository
-import site.komuna.reserve.organization.repository.OrganizationSearchRepository
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
@@ -23,7 +25,6 @@ import site.komuna.reserve.user.model.UserEntity
 @Service
 class OrganizationService(
     private val repository: OrganizationRepository,
-    private val searchRepository: OrganizationSearchRepository,
     private val organizationMemberService: OrganizationMemberService,
     private val userService: UserService,
 ) {
@@ -33,27 +34,43 @@ class OrganizationService(
 
     fun getOrganizations(filter: SearchOrganizationFilter, pageable: Pageable): Page<OrganizationDto> {
         prepareSearch(filter)
-        return searchRepository.search(filter, pageable)
-            .map { organization ->
-                if (!filter.fetchMembers) {
-                    OrganizationDto(organization)
-                } else {
-                    val members =
-                        organizationMemberService.getMembersOfOrganization(organization.id!!)
-                            .map { UserDto(it) }
-                    val owners =
-                        organizationMemberService.getOwnersOfOrganization(organization.id!!)
-                            .map { UserDto(it) }
 
+        val sortedPageable = PageRequest.of(pageable.pageNumber, pageable.pageSize, Sort.by("name"))
+
+        return repository.findAll(specification(filter), sortedPageable)
+            .map { org ->
+                if (!filter.fetchMembers) {
+                    OrganizationDto(org)
+                } else {
                     OrganizationDto(
-                        organization,
-                        members,
-                        owners
+                        org,
+                        organizationMemberService.getMembersOfOrganization(org.id!!).map { UserDto(it) },
+                        organizationMemberService.getOwnersOfOrganization(org.id!!).map { UserDto(it) }
                     )
                 }
             }
     }
 
+    fun specification(filter: SearchOrganizationFilter) =
+        Specification<OrganizationEntity> { root, _, cb ->
+            val predicates = mutableListOf<Predicate>()
+
+            filter.organizationId?.let {
+                predicates += cb.equal(root.get<Long>("id"), it)
+            }
+
+            if (filter.ownerId != null || filter.userId != null) {
+                predicates += root.get<Long>("id").`in`(filter.organizationsIds)
+            }
+
+            filter.name?.let {
+                predicates += cb.equal(root.get<String>("name"), it)
+            }
+
+            cb.and(*predicates.toTypedArray())
+        }
+
+    @Transactional
     fun createOrganization(request: CreateOrganizationRequest): OrganizationEntity {
         val user = userService.findById(request.ownerId!!)
 
@@ -63,14 +80,16 @@ class OrganizationService(
             OrganizationEntity(
                 name = request.name,
                 created = request.createdAt!!,
-                createdBy = user)
+                createdBy = user
+            )
         )
 
         organizationMemberService.addOwner(organization, user, user)
+
         return organization
     }
 
-    fun addMember(userId: Long, organizationId: Long, addedBy: Long) : OrganizationMemberEntity {
+    fun addMember(userId: Long, organizationId: Long, addedBy: Long): OrganizationMemberEntity {
         val organization = getOrganization(organizationId)
         val user = userService.findById(userId)
         val addedByUser = userService.findById(addedBy)
@@ -83,6 +102,7 @@ class OrganizationService(
         return organizationMemberService.addMember(organization, user, addedByUser)
     }
 
+
     fun removeMember(userId: Long, organizationId: Long, removedBy: Long) {
         val organization = getOrganization(organizationId)
         val user = userService.findById(userId)
@@ -93,22 +113,22 @@ class OrganizationService(
             throw CannotPerformThatActionException("User is not an owner of the organization")
         }
 
-        // Maybe we could remove the owner when there are more than one owner.
-        // Current process allows us to change a role of members so we have a workaround
-        if(isOwner(user, organization)) {
-            throw CannotPerformThatActionException("Cannot remove an owner from the organization")
+        if (isOwner(user, organization)) {
+            val totalOwnersCount = organizationMemberService.getOwnersOfOrganization(organization.id!!).size
+            if (totalOwnersCount <= 1) {
+                throw CannotPerformThatActionException("Cannot remove the sole owner of the organization")
+            }
         }
 
         organizationMemberService.removeMember(organization, user)
     }
-
-    fun assignRole(userId: Long, organizationId: Long, role: String, assignedBy: Long): OrganizationMemberEntity {
+    fun assignRole(userId: Long, organizationId: Long, roleStr: String, assignedBy: Long): OrganizationMemberEntity {
         val organization = getOrganization(organizationId)
         val user = userService.findById(userId)
         val assignedByUser = userService.findById(assignedBy)
-        val role = OrganizationMemberRole.from(role)
+        val role = OrganizationMemberRole.from(roleStr)
 
-        if(!isOwner(assignedByUser, organization)) {
+        if (!isOwner(assignedByUser, organization)) {
             throw CannotPerformThatActionException("User is not an owner of the organization")
         }
 
@@ -120,7 +140,7 @@ class OrganizationService(
         val organization = getOrganization(organizationId)
         val decommissionedByUser = userService.findById(decommissionedBy)
 
-        if(!isOwner(decommissionedByUser, organization)) {
+        if (!isOwner(decommissionedByUser, organization)) {
             throw CannotPerformThatActionException("User is not an owner of the organization")
         }
 
@@ -128,7 +148,18 @@ class OrganizationService(
         repository.delete(organization)
     }
 
+    fun setTrusted(organizationId: Long, trusted: Boolean): OrganizationEntity {
+        val organization = getOrganization(organizationId)
+        return setTrusted(organization, trusted)
+    }
+
+    fun setTrusted(organization: OrganizationEntity, trusted: Boolean): OrganizationEntity {
+        organization.trusted = trusted
+        return repository.save(organization)
+    }
+
     // ====================================================================================================
+
     fun isMember(userId: Long, organizationId: Long): Boolean {
         val organization = getOrganization(organizationId)
         val user = userService.findById(userId)
@@ -137,13 +168,12 @@ class OrganizationService(
     }
 
     fun isMember(user: UserEntity, organization: OrganizationEntity): Boolean {
-        val membership = organizationMemberService.getOrganizationMember(user, organization)
-        return true
+        return organizationMemberService.isUserInOrganization(user.id!!, organization.id!!)
     }
 
     fun isOwner(user: UserEntity, organization: OrganizationEntity): Boolean {
-        val membership = organizationMemberService.getOrganizationMember(user, organization)
-        return membership.role == OrganizationMemberRole.OWNER
+        val memberships = organizationMemberService.getOrganizationMemberships(user, organization)
+        return memberships.any { it.role == OrganizationMemberRole.OWNER }
     }
 
     fun getOrganization(id: Long): OrganizationEntity {
@@ -153,7 +183,6 @@ class OrganizationService(
     // ====================================================================================================
 
     private fun prepareSearch(filter: SearchOrganizationFilter): SearchOrganizationFilter {
-
         val organizationIds = mutableSetOf<Long>()
 
         filter.ownerId?.let {
@@ -170,5 +199,9 @@ class OrganizationService(
 
         filter.organizationsIds.addAll(organizationIds)
         return filter
+    }
+
+    fun getAllOrganizationsForUser(userId: Long): List<OrganizationEntity> {
+        return organizationMemberService.getAllOrganizationsForUser(userId)
     }
 }

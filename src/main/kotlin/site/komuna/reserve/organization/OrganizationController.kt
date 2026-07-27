@@ -13,13 +13,16 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 import site.komuna.reserve.organization.model.CreateOrganizationRequest
 import site.komuna.reserve.organization.model.OrganizationDto
 import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberDto
+import site.komuna.reserve.user.model.UserDto
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
@@ -48,12 +51,13 @@ class OrganizationController(
         return service.getOrganizations(filter, pageable)
     }
 
-    @PostMapping("/")
+    @PostMapping("")
     fun createOrganization(@RequestBody request: CreateOrganizationRequest, authentication: Authentication): ResponseEntity<OrganizationDto> {
         request.ownerId = authentication.name.toLong()
         request.createdAt = OffsetDateTime.now(ZoneOffset.UTC)
 
         logger.info { "Received a request from user id ${request.ownerId} to create a new organization: ${request.name}" }
+        println( "Received a request from user id ${request.ownerId} to create a new organization: ${request.name}" )
 
         val organization = service.createOrganization(request)
 
@@ -115,5 +119,15 @@ class OrganizationController(
         return ResponseEntity
             .status(HttpStatus.NO_CONTENT)
             .build()
+    }
+
+
+    @PatchMapping("/{organizationId}/isTrusted/{isTrusted}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun setTrusted(@PathVariable organizationId: Long, @PathVariable isTrusted: Boolean, authentication: Authentication): ResponseEntity<OrganizationDto> {
+        logger.info { "Received a request from user id ${authentication.name} to set organization with id: $organizationId to trusted: $isTrusted" }
+
+        val organization = service.setTrusted(organizationId, isTrusted)
+        return ResponseEntity.ok(OrganizationDto(organization))
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import site.komuna.reserve.common.exception.Conflict409
 import site.komuna.reserve.common.exception.ReserveException
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -39,4 +40,16 @@ class GlobalExceptionHandler {
                 )
             )
     }
+    @ExceptionHandler(Conflict409 ::class)
+    fun conflict(ex: Conflict409): ResponseEntity<ErrorResponse> {
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(
+                ErrorResponse(
+                status = ex.httpStatus.value(),
+                error = ex.message
+            )
+            )
+    }
+
 }

@@ -1,0 +1,19 @@
+package site.komuna.reserve.reservation.model
+
+import site.komuna.reserve.common.exception.ReservationStatusNotFoundException
+
+enum class ReservationStatus {
+    CREATED,
+    CONFIRMED,
+    REQUESTED_CANCELLATION,
+    CANCELLED,
+    REJECTED_CANCELLATION;
+
+    companion object {
+        fun from(value: String): ReservationStatus {
+            return entries.firstOrNull {
+                it.name.equals(value, ignoreCase = true)
+            } ?: throw ReservationStatusNotFoundException(value)
+        }
+    }
+}

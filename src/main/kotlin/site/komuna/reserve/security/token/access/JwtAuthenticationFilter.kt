@@ -22,22 +22,14 @@ class JwtAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
-
-        // checking bearer token - postman tests
         var token: String? = null
-        val authHeader = request.getHeader(HttpHeaders.AUTHORIZATION)
 
-        if (!authHeader.isNullOrBlank() && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7)
-        } else {
-           // check cookies for access_token
-            val cookies = request.cookies
-            if (cookies != null) {
-                for (cookie in cookies) {
-                    if (cookie.name == "access_token") {
-                        token = cookie.value
-                        break
-                    }
+        val cookies = request.cookies
+        if (cookies != null) {
+            for (cookie in cookies) {
+                if (cookie.name == "access_token") {
+                    token = cookie.value
+                    break
                 }
             }
         }

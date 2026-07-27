@@ -10,6 +10,8 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 @Entity
 @Table(name = "organizations")
@@ -18,10 +20,11 @@ class OrganizationEntity(
     @GeneratedValue(strategy = IDENTITY)
     var id: Long? = null,
     var name: String,
-    var created: OffsetDateTime,
+    var created: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_user_id", nullable = false)
     var createdBy: UserEntity,
+    var trusted: Boolean = false,
 ) {
 }

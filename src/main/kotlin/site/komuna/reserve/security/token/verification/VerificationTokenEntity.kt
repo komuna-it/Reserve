@@ -10,6 +10,7 @@ import jakarta.persistence.OneToOne
 import jakarta.persistence.Table
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @Entity
 @Table(name = "verification_tokens")
@@ -23,7 +24,7 @@ class VerificationTokenEntity(
     var user: UserEntity,
     var token: String,
     var expires: OffsetDateTime,
-    var createdAt: OffsetDateTime,
+    var createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
 
     ) {
 
