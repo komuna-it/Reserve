@@ -12,4 +12,10 @@ class ConfirmReservationService(
         val confirmReservation = ConfirmReservationEntity(reservation = reservation, approvedBy = approvedBy)
         repository.save(confirmReservation)
     }
+
+    fun saveRejectReservationDetails(reservation: ReservationEntity, rejectedBy: UserEntity) {
+
+        val confirmReservation = ConfirmReservationEntity(reservation = reservation, approvedBy = rejectedBy)
+        repository.save(confirmReservation)
+    }
 }

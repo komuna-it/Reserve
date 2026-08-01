@@ -12,6 +12,7 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.room.model.RoomEntity
+import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
 
@@ -33,7 +34,7 @@ class ReservationEntity(
     var type: ReservationType,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id", nullable = false)
+    @JoinColumn(name = "organization_id", nullable = true)
     // Null in organization means that the reservation is private
     var organization: OrganizationEntity?,
 
@@ -55,5 +56,9 @@ class ReservationEntity(
         reservedAt = request.reservedAt!!,
         startAt = request.startAt,
         endAt = request.endAt!!,
-    )
+    ) {
+        if(reservedBy.role == Role.ADMIN) {
+            status = ReservationStatus.CONFIRMED
+        }
+    }
 }

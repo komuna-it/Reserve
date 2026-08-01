@@ -54,7 +54,6 @@ class SecurityConfig(
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/rooms/**").permitAll()
                     .requestMatchers("/sse").permitAll()
-                    .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(
@@ -84,16 +83,5 @@ class SecurityConfig(
     @Bean
     fun passwordsEncoder(): PasswordEncoder {
         return BCryptPasswordEncoder()
-    }
-
-    @Bean
-    fun csrfTokenRepository(): CookieCsrfTokenRepository {
-        return CookieCsrfTokenRepository.withHttpOnlyFalse().apply {
-            setCookieCustomizer { cookie ->
-                cookie.secure(true)
-                cookie.sameSite("Lax")
-                cookie.path("/")
-            }
-        }
     }
 }

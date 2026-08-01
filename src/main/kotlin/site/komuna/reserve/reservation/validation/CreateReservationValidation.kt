@@ -4,6 +4,7 @@ import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.organization.OrganizationService
 import site.komuna.reserve.reservation.ReservationRepository
 import site.komuna.reserve.reservation.model.CreateReservationRequest
+import site.komuna.reserve.user.Role
 import java.time.OffsetDateTime
 
 class CreateReservationValidation(
@@ -29,9 +30,15 @@ class CreateReservationValidation(
         val organization = request.organization!!
         val user = request.reservedByUser!!
 
+        if (user.role == Role.ADMIN) {
+            return true
+        }
+
         val isMember = organizationService.isMember(user, organization)
-        if (!isMember) {
-            throw CannotPerformThatActionException("User with id ${user.id} is not a member of organization ${organization.name}")
+        val isOwner = organizationService.isOwner(user, organization)
+
+        if (!isMember && !isOwner) {
+            throw CannotPerformThatActionException("User with id ${user.id} is not an owner/member of organization ${organization.name}")
         }
 
         return true

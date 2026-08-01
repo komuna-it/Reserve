@@ -57,7 +57,6 @@ class OrganizationController(
         request.createdAt = OffsetDateTime.now(ZoneOffset.UTC)
 
         logger.info { "Received a request from user id ${request.ownerId} to create a new organization: ${request.name}" }
-        println( "Received a request from user id ${request.ownerId} to create a new organization: ${request.name}" )
 
         val organization = service.createOrganization(request)
 

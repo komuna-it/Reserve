@@ -5,6 +5,7 @@ import site.komuna.reserve.common.exception.ReservationStatusNotFoundException
 enum class ReservationStatus {
     CREATED,
     CONFIRMED,
+    REJECTED,
     REQUESTED_CANCELLATION,
     CANCELLED,
     REJECTED_CANCELLATION;

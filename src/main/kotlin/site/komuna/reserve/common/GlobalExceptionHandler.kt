@@ -40,16 +40,4 @@ class GlobalExceptionHandler {
                 )
             )
     }
-    @ExceptionHandler(Conflict409 ::class)
-    fun conflict(ex: Conflict409): ResponseEntity<ErrorResponse> {
-        return ResponseEntity
-            .status(HttpStatus.CONFLICT)
-            .body(
-                ErrorResponse(
-                status = ex.httpStatus.value(),
-                error = ex.message
-            )
-            )
-    }
-
 }
