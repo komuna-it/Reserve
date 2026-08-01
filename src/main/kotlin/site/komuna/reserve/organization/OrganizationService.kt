@@ -37,12 +37,10 @@ class OrganizationService(
 
         val targetOrgIds = collectTargetOrganizationIds(filter)
 
-
         // return empty page when user was not found
         if ((filter.ownerId != null || filter.userId != null) && targetOrgIds.isEmpty()) {
             return Page.empty(pageable)
         }
-
 
         return repository.findAll(specification(filter, targetOrgIds), sortedPageable)
             .map { org ->
@@ -57,7 +55,6 @@ class OrganizationService(
                 }
             }
     }
-
     // return org when user is a member or an owner
     private fun collectTargetOrganizationIds(filter: SearchOrganizationFilter): Set<Long> {
         val organizationIds = mutableSetOf<Long>()
@@ -115,6 +112,7 @@ class OrganizationService(
         return organization
     }
 
+    @Transactional
     fun addMember(userId: Long, organizationId: Long, addedBy: Long): OrganizationMemberEntity {
         val organization = getOrganization(organizationId)
         val user = userService.findById(userId)
@@ -127,7 +125,6 @@ class OrganizationService(
 
         return organizationMemberService.addMember(organization, user, addedByUser)
     }
-
 
     fun removeMember(userId: Long, organizationId: Long, removedBy: Long) {
         val organization = getOrganization(organizationId)
@@ -148,6 +145,8 @@ class OrganizationService(
 
         organizationMemberService.removeMember(organization, user)
     }
+
+    @Transactional
     fun assignRole(userId: Long, organizationId: Long, roleStr: String, assignedBy: Long): OrganizationMemberEntity {
         val organization = getOrganization(organizationId)
         val user = userService.findById(userId)
@@ -204,27 +203,6 @@ class OrganizationService(
 
     fun getOrganization(id: Long): OrganizationEntity {
         return repository.findById(id).orElseThrow { OrganizationNotFoundException(id) }
-    }
-
-    // ====================================================================================================
-
-    private fun prepareSearch(filter: SearchOrganizationFilter): SearchOrganizationFilter {
-        val organizationIds = mutableSetOf<Long>()
-
-        filter.ownerId?.let {
-            organizationIds += organizationMemberService
-                .getOrganizationsOwnedByUser(it)
-                .map { organization -> organization.id!! }
-        }
-
-        filter.userId?.let {
-            organizationIds += organizationMemberService
-                .getOrganizationsAssignedToUser(it)
-                .map { organization -> organization.id!! }
-        }
-
-        filter.organizationsIds.addAll(organizationIds)
-        return filter
     }
 
     fun getAllOrganizationsForUser(userId: Long): List<OrganizationEntity> {
