@@ -33,11 +33,18 @@ class OrganizationService(
     }
 
     fun getOrganizations(filter: SearchOrganizationFilter, pageable: Pageable): Page<OrganizationDto> {
-        prepareSearch(filter)
-
         val sortedPageable = PageRequest.of(pageable.pageNumber, pageable.pageSize, Sort.by("name"))
 
-        return repository.findAll(specification(filter), sortedPageable)
+        val targetOrgIds = collectTargetOrganizationIds(filter)
+
+
+        // return empty page when user was not found
+        if ((filter.ownerId != null || filter.userId != null) && targetOrgIds.isEmpty()) {
+            return Page.empty(pageable)
+        }
+
+
+        return repository.findAll(specification(filter, targetOrgIds), sortedPageable)
             .map { org ->
                 if (!filter.fetchMembers) {
                     OrganizationDto(org)
@@ -51,7 +58,26 @@ class OrganizationService(
             }
     }
 
-    fun specification(filter: SearchOrganizationFilter) =
+    // return org when user is a member or an owner
+    private fun collectTargetOrganizationIds(filter: SearchOrganizationFilter): Set<Long> {
+        val organizationIds = mutableSetOf<Long>()
+
+        filter.ownerId?.let {
+            organizationIds += organizationMemberService
+                .getOrganizationsOwnedByUser(it)
+                .mapNotNull { organization -> organization.id }
+        }
+
+        filter.userId?.let {
+            organizationIds += organizationMemberService
+                .getOrganizationsAssignedToUser(it)
+                .mapNotNull { organization -> organization.id }
+        }
+
+        return organizationIds
+    }
+
+    fun specification(filter: SearchOrganizationFilter, targetOrgIds: Set<Long>) =
         Specification<OrganizationEntity> { root, _, cb ->
             val predicates = mutableListOf<Predicate>()
 
@@ -60,7 +86,7 @@ class OrganizationService(
             }
 
             if (filter.ownerId != null || filter.userId != null) {
-                predicates += root.get<Long>("id").`in`(filter.organizationsIds)
+                predicates += root.get<Long>("id").`in`(targetOrgIds)
             }
 
             filter.name?.let {
