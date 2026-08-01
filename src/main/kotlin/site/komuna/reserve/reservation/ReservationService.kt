@@ -1,6 +1,7 @@
 package site.komuna.reserve.reservation
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Predicate
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -62,12 +63,18 @@ class ReservationService(
                 predicates += cb.equal(root.get<Long>("reservedBy"), it)
             }
 
-            filter.userId?.let {
-                val organization = root.join<ReservationEntity, OrganizationEntity>("organization")
+            filter.userId?.let { userId ->
+                val organizationJoin = root.join<ReservationEntity, OrganizationEntity>("organization", JoinType.LEFT)
 
-                predicates += organization.get<Long>("id").`in`(filter.organizationsId)
+                val userIsCreator = cb.equal(root.get<UserEntity>("reservedBy").get<Long>("id"), userId)
+
+                if (filter.organizationsId.isNotEmpty()) {
+                    val inUserOrganizations = organizationJoin.get<Long>("id").`in`(filter.organizationsId)
+                    predicates += cb.or(userIsCreator, inUserOrganizations)
+                } else {
+                    predicates += userIsCreator
+                }
             }
-
             if (filter.future) {
                 predicates += cb.greaterThanOrEqualTo(
                     root.get("startAt"),
