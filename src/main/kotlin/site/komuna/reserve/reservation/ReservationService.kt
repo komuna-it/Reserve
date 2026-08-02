@@ -170,9 +170,6 @@ class ReservationService(
     }
 
     fun rejectReservationRequest(reservation: ReservationEntity, rejectedBy: UserEntity): ReservationEntity {
-        if (reservation.status != ReservationStatus.CREATED) {
-            throw CannotPerformThatActionException("Reservation is not in CREATED status")
-        }
 
         // Save details
         confirmReservationService.saveRejectReservationDetails(reservation, rejectedBy)
