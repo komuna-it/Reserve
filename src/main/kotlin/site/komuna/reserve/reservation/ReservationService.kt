@@ -1,6 +1,7 @@
 package site.komuna.reserve.reservation
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Predicate
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -24,6 +25,7 @@ import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.room.model.RoomEntity
 import site.komuna.reserve.sse.ReserveEvents
 import site.komuna.reserve.sse.SseService
+import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
@@ -66,12 +68,18 @@ class ReservationService(
                 predicates += cb.equal(root.get<Long>("reservedBy"), it)
             }
 
-            filter.userId?.let {
-                val organization = root.join<ReservationEntity, OrganizationEntity>("organization")
+            filter.userId?.let { userId ->
+                val organizationJoin = root.join<ReservationEntity, OrganizationEntity>("organization", JoinType.LEFT)
 
-                predicates += organization.get<Long>("id").`in`(filter.organizationsId)
+                val userIsCreator = cb.equal(root.get<UserEntity>("reservedBy").get<Long>("id"), userId)
+
+                if (filter.organizationsId.isNotEmpty()) {
+                    val inUserOrganizations = organizationJoin.get<Long>("id").`in`(filter.organizationsId)
+                    predicates += cb.or(userIsCreator, inUserOrganizations)
+                } else {
+                    predicates += userIsCreator
+                }
             }
-
             if (filter.future) {
                 predicates += cb.greaterThanOrEqualTo(
                     root.get("startAt"),
@@ -145,7 +153,7 @@ class ReservationService(
     }
 
     fun confirmReservation(reservation: ReservationEntity, approvedBy: UserEntity): ReservationEntity{
-        if (reservation.status != ReservationStatus.CREATED) {
+        if (reservation.status != ReservationStatus.CREATED && (approvedBy.role== Role.MANAGER || approvedBy.role== Role.ADMIN)){
             throw CannotPerformThatActionException("Reservation is not in CREATED status")
         }
 
@@ -163,9 +171,6 @@ class ReservationService(
     }
 
     fun rejectReservationRequest(reservation: ReservationEntity, rejectedBy: UserEntity): ReservationEntity {
-        if (reservation.status != ReservationStatus.CREATED) {
-            throw CannotPerformThatActionException("Reservation is not in CREATED status")
-        }
 
         // Save details
         confirmReservationService.saveRejectReservationDetails(reservation, rejectedBy)

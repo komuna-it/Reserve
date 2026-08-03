@@ -113,8 +113,9 @@ class OrganizationMemberService(
             .map { it.organization }
     }
 
+    // fetch when users is a member or an owner
     fun getOrganizationsAssignedToUser(userId: Long): List<OrganizationEntity> {
-        return repository.findByUserIdAndRole(userId, OrganizationMemberRole.MEMBER)
+        return repository.findByUserId(userId)
             .map { it.organization }
     }
 
