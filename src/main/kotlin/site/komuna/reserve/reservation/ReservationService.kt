@@ -25,6 +25,7 @@ import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.room.model.RoomEntity
 import site.komuna.reserve.sse.ReserveEvents
 import site.komuna.reserve.sse.SseService
+import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
@@ -152,7 +153,7 @@ class ReservationService(
     }
 
     fun confirmReservation(reservation: ReservationEntity, approvedBy: UserEntity): ReservationEntity{
-        if (reservation.status != ReservationStatus.CREATED) {
+        if (reservation.status != ReservationStatus.CREATED && (approvedBy.role== Role.MANAGER || approvedBy.role== Role.ADMIN)){
             throw CannotPerformThatActionException("Reservation is not in CREATED status")
         }
 
