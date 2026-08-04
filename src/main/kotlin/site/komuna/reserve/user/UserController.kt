@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanRequest
+import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
 import site.komuna.reserve.user.model.UserDto
 
 @RestController
@@ -65,14 +66,24 @@ class UserController(
         return ResponseEntity.ok(bannedUsers)
     }
 
-    @PatchMapping("/{userId}/isTrusted/{isTrusted}")
+    @PatchMapping("/trustedStatus")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun setTrusted(@PathVariable userId: Long, @PathVariable isTrusted: Boolean, authentication: Authentication): ResponseEntity<UserDto> {
-        logger.info { "Received a request from user id ${authentication.name} to set user with id: $userId to trusted: $isTrusted" }
-        val userEntity = service.setTrusted(userId, isTrusted)
-        val useDto = service.convertToUserDto(userEntity)
+    fun setTrusted(@RequestBody request: UpdateTrustedUserStatusRequest, authentication: Authentication): ResponseEntity<List<UserDto>> {
 
-        return ResponseEntity.ok(useDto)
+        val isTrusted = request.trusted
+
+        val users = newArrayList<UserDto>()
+
+        request.usersIds.forEach { userId ->
+            logger.info { "Received a request from user id ${authentication.name} to set user with id: $userId to trusted: $isTrusted" }
+
+            val userEntity = service.setTrusted(userId, isTrusted)
+            val userDto = service.convertToUserDto(userEntity)
+
+            users.add(userDto)
+        }
+
+        return ResponseEntity.ok(users)
     }
 
     @GetMapping("/test")
