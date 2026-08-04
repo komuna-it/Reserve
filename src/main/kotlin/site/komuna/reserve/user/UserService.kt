@@ -148,6 +148,12 @@ class UserService(
         return ban != null
     }
 
-    fun getUsers(): List<UserDto> =
-        repository.findAll().map(::UserDto)
+    fun getUsers(): List<UserEntity> =
+        repository.findAll()
+
+    fun convertToUserDto(user: UserEntity): UserDto {
+        val banned = banService.isUserBanned(user) != null
+
+        return UserDto(user, banned)
+    }
 }

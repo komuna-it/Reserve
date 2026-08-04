@@ -63,8 +63,9 @@ class AuthController(
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
 
-        val dto = userService.findByEmail(request.email)
-        return ResponseEntity.ok(UserDto(dto))
+        val userEntity = userService.findByEmail(request.email)
+        val userDto = userService.convertToUserDto(userEntity)
+        return ResponseEntity.ok(userDto)
     }
 
 
@@ -105,7 +106,8 @@ class AuthController(
         }
 
         return try {
-            val userDto = service.getMe(authentication)
+            val userEntity = service.getMe(authentication)
+            val userDto = userService.convertToUserDto(userEntity)
 
             ResponseEntity.ok(userDto)
         } catch (e: IllegalStateException) {

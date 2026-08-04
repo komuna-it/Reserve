@@ -8,11 +8,14 @@ class UserDto(
     val nick: String,
     val role: Role,
     var trusted: Boolean = false,
+    var banned: Boolean = false,
 ) {
-    constructor(userEntity: UserEntity) : this(
+    constructor(userEntity: UserEntity, banned: Boolean = false) : this(
         userEntity.id!!,
         userEntity.email,
         userEntity.nick,
         userEntity.role,
-        trusted = userEntity.trusted)
+        trusted = userEntity.trusted,
+        banned = banned
+    )
 }

@@ -24,19 +24,22 @@ class UserController(
         private val logger = KotlinLogging.logger {}
     }
 
-
     @GetMapping("/all")
-    fun getUsers(): ResponseEntity<List<UserDto>> =
-        ResponseEntity.ok(service.getUsers())
+    fun getUsers(): ResponseEntity<List<UserDto>> {
+        val usersEntity = service.getUsers()
+        val usersDto = usersEntity.map { service.convertToUserDto(it) }
 
+        return ResponseEntity.ok(usersDto)
+    }
 
     @PutMapping("/assigneUser/{id}/role/{role}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun promoteUserToAdmin(@PathVariable id: Long, @PathVariable role: String, authentication: Authentication): ResponseEntity<UserDto> {
         logger.info { "Received a request from user id ${authentication.name} to promote user with id: $id to role: $role" }
-        val user = UserDto(service.assigneeUserRole(id, role, authentication.name))
+        val userEntity = service.assigneeUserRole(id, role, authentication.name)
+        val userDto = service.convertToUserDto(userEntity)
 
-        return ResponseEntity.ok(user)
+        return ResponseEntity.ok(userDto)
     }
 
     @PutMapping("/ban")
@@ -49,6 +52,7 @@ class UserController(
         val duration = request.duration
 
         val ban = service.banUser(userId, bannedBy, reason, duration)
+
         return ResponseEntity.ok(BanDto(ban))
     }
 
@@ -56,8 +60,10 @@ class UserController(
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun setTrusted(@PathVariable userId: Long, @PathVariable isTrusted: Boolean, authentication: Authentication): ResponseEntity<UserDto> {
         logger.info { "Received a request from user id ${authentication.name} to set user with id: $userId to trusted: $isTrusted" }
-        val user = service.setTrusted(userId, isTrusted)
-        return ResponseEntity.ok(UserDto(user))
+        val userEntity = service.setTrusted(userId, isTrusted)
+        val useDto = service.convertToUserDto(userEntity)
+
+        return ResponseEntity.ok(useDto)
     }
 
     @GetMapping("/test")
