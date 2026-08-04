@@ -96,6 +96,13 @@ class UserService(
         return banService.banUser(user, bannedBy, reason, duration)
     }
 
+    fun unbanUser(userId: Long): UserEntity {
+        val user = findById(userId)
+
+        banService.unbanUser(user)
+        return user
+    }
+
     fun setTrusted(userID: Long, trusted: Boolean): UserEntity {
         val user = findById(userID)
 
@@ -151,12 +158,12 @@ class UserService(
 
     fun getUsers(): List<UserEntity> =
         repository.findAll()
-
     fun convertToUserDto(user: UserEntity): UserDto {
         val banned = banService.isUserBanned(user) != null
 
         return UserDto(user, banned)
     }
+
     fun convertToBanDto(ban: BanEntity): BanDto {
         val user = convertToUserDto(ban.user)
         val bannedBy = convertToUserDto(ban.bannedBy)

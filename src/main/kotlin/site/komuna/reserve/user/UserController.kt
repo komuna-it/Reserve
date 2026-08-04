@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanRequest
+import site.komuna.reserve.user.ban.model.UnBanRequest
 import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
 import site.komuna.reserve.user.model.UserDto
 
@@ -47,8 +48,6 @@ class UserController(
     @PutMapping("/ban")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun banUser(@RequestBody request: BanRequest, authentication: Authentication): ResponseEntity<List<BanDto>> {
-        logger.info { "Received a request from user id ${authentication.name} to ban users: ${request.userIds}" }
-
         val bannedBy = authentication.name.toLong()
         val reason = request.reason
         val duration = request.duration
@@ -64,6 +63,21 @@ class UserController(
         }
 
         return ResponseEntity.ok(bannedUsers)
+    }
+
+    @PutMapping("/unban")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun unbanUser(@RequestBody request: UnBanRequest, authentication: Authentication): ResponseEntity<List<UserDto>> {
+
+        val unbannedUsers = newArrayList<UserDto>()
+
+        request.userIds.forEach { userId ->
+            logger.info { "Received a request from user id ${authentication.name} to unban user with id: $userId" }
+            val userEntity = service.unbanUser(userId)
+            val userDto = service.convertToUserDto(userEntity)
+            unbannedUsers.add(userDto)
+        }
+        return ResponseEntity.ok(unbannedUsers)
     }
 
     @PatchMapping("/trustedStatus")

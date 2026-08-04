@@ -29,6 +29,13 @@ class BanService(
         return repository.save(ban)
     }
 
+    fun unbanUser(user: UserEntity) {
+        val banEntity = isUserBanned(user) ?: return
+
+        banEntity.banExpires = OffsetDateTime.now(ZoneOffset.UTC)
+        repository.save(banEntity)
+    }
+
     fun isUserBanned(id: Long): BanEntity? {
         val now = OffsetDateTime.now(ZoneOffset.UTC)
 
