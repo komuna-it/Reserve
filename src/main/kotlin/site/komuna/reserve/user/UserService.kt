@@ -11,6 +11,7 @@ import site.komuna.reserve.common.exception.UserNotFoundException
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
 import site.komuna.reserve.user.ban.BanService
+import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanEntity
 import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
@@ -156,4 +157,10 @@ class UserService(
 
         return UserDto(user, banned)
     }
+    fun convertToBanDto(ban: BanEntity): BanDto {
+        val user = convertToUserDto(ban.user)
+        val bannedBy = convertToUserDto(ban.bannedBy)
+        return BanDto(ban, user, bannedBy)
+    }
+
 }

@@ -1,6 +1,7 @@
 package site.komuna.reserve.user
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -44,16 +45,24 @@ class UserController(
 
     @PutMapping("/ban")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun banUser(@RequestBody request: BanRequest, authentication: Authentication): ResponseEntity<BanDto> {
-        logger.info { "Received a request from user id ${authentication.name} to ban user with id: ${request.userId}" }
-        val userId = request.userId
+    fun banUser(@RequestBody request: BanRequest, authentication: Authentication): ResponseEntity<List<BanDto>> {
+        logger.info { "Received a request from user id ${authentication.name} to ban users: ${request.userIds}" }
+
         val bannedBy = authentication.name.toLong()
         val reason = request.reason
         val duration = request.duration
 
-        val ban = service.banUser(userId, bannedBy, reason, duration)
+        val bannedUsers = newArrayList<BanDto>()
 
-        return ResponseEntity.ok(BanDto(ban))
+        request.userIds.forEach { userId ->
+            logger.info { "Received a request from user id ${authentication.name} to ban user with id: $userId for: $duration reason: $reason" }
+
+            val ban = service.banUser(userId, bannedBy, reason, duration)
+            val banDto = service.convertToBanDto(ban)
+            bannedUsers.add(banDto)
+        }
+
+        return ResponseEntity.ok(bannedUsers)
     }
 
     @PatchMapping("/{userId}/isTrusted/{isTrusted}")
