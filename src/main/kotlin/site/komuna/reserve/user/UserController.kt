@@ -1,6 +1,7 @@
 package site.komuna.reserve.user
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanRequest
+import site.komuna.reserve.user.ban.model.UnBanRequest
+import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
 import site.komuna.reserve.user.model.UserDto
 
 @RestController
@@ -24,40 +27,77 @@ class UserController(
         private val logger = KotlinLogging.logger {}
     }
 
-
     @GetMapping("/all")
-    fun getUsers(): ResponseEntity<List<UserDto>> =
-        ResponseEntity.ok(service.getUsers())
+    fun getUsers(): ResponseEntity<List<UserDto>> {
+        val usersEntity = service.getUsers()
+        val usersDto = usersEntity.map { service.convertToUserDto(it) }
 
+        return ResponseEntity.ok(usersDto)
+    }
 
     @PutMapping("/assigneUser/{id}/role/{role}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun promoteUserToAdmin(@PathVariable id: Long, @PathVariable role: String, authentication: Authentication): ResponseEntity<UserDto> {
         logger.info { "Received a request from user id ${authentication.name} to promote user with id: $id to role: $role" }
-        val user = UserDto(service.assigneeUserRole(id, role, authentication.name))
+        val userEntity = service.assigneeUserRole(id, role, authentication.name)
+        val userDto = service.convertToUserDto(userEntity)
 
-        return ResponseEntity.ok(user)
+        return ResponseEntity.ok(userDto)
     }
 
     @PutMapping("/ban")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun banUser(@RequestBody request: BanRequest, authentication: Authentication): ResponseEntity<BanDto> {
-        logger.info { "Received a request from user id ${authentication.name} to ban user with id: ${request.userId}" }
-        val userId = request.userId
+    fun banUser(@RequestBody request: BanRequest, authentication: Authentication): ResponseEntity<List<BanDto>> {
         val bannedBy = authentication.name.toLong()
         val reason = request.reason
         val duration = request.duration
 
-        val ban = service.banUser(userId, bannedBy, reason, duration)
-        return ResponseEntity.ok(BanDto(ban))
+        val bannedUsers = newArrayList<BanDto>()
+
+        request.userIds.forEach { userId ->
+            logger.info { "Received a request from user id ${authentication.name} to ban user with id: $userId for: $duration reason: $reason" }
+
+            val ban = service.banUser(userId, bannedBy, reason, duration)
+            val banDto = service.convertToBanDto(ban)
+            bannedUsers.add(banDto)
+        }
+
+        return ResponseEntity.ok(bannedUsers)
     }
 
-    @PatchMapping("/{userId}/isTrusted/{isTrusted}")
+    @PutMapping("/unban")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun setTrusted(@PathVariable userId: Long, @PathVariable isTrusted: Boolean, authentication: Authentication): ResponseEntity<UserDto> {
-        logger.info { "Received a request from user id ${authentication.name} to set user with id: $userId to trusted: $isTrusted" }
-        val user = service.setTrusted(userId, isTrusted)
-        return ResponseEntity.ok(UserDto(user))
+    fun unbanUser(@RequestBody request: UnBanRequest, authentication: Authentication): ResponseEntity<List<UserDto>> {
+
+        val unbannedUsers = newArrayList<UserDto>()
+
+        request.userIds.forEach { userId ->
+            logger.info { "Received a request from user id ${authentication.name} to unban user with id: $userId" }
+            val userEntity = service.unbanUser(userId)
+            val userDto = service.convertToUserDto(userEntity)
+            unbannedUsers.add(userDto)
+        }
+        return ResponseEntity.ok(unbannedUsers)
+    }
+
+    @PatchMapping("/trustedStatus")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun setTrusted(@RequestBody request: UpdateTrustedUserStatusRequest, authentication: Authentication): ResponseEntity<List<UserDto>> {
+
+        val isTrusted = request.trusted
+
+        val users = newArrayList<UserDto>()
+
+        request.usersIds.forEach { userId ->
+            logger.info { "Received a request from user id ${authentication.name} to set user with id: $userId to trusted: $isTrusted" }
+
+            val userEntity = service.setTrusted(userId, isTrusted)
+            val userDto = service.convertToUserDto(userEntity)
+
+            users.add(userDto)
+        }
+
+        return ResponseEntity.ok(users)
     }
 
     @GetMapping("/test")

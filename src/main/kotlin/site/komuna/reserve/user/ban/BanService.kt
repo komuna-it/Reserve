@@ -2,6 +2,8 @@ package site.komuna.reserve.user.ban
 
 import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
+import site.komuna.reserve.user.UserService
+import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanEntity
 import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
@@ -25,6 +27,13 @@ class BanService(
             banExpires = expires
         )
         return repository.save(ban)
+    }
+
+    fun unbanUser(user: UserEntity) {
+        val banEntity = isUserBanned(user) ?: return
+
+        banEntity.banExpires = OffsetDateTime.now(ZoneOffset.UTC)
+        repository.save(banEntity)
     }
 
     fun isUserBanned(id: Long): BanEntity? {

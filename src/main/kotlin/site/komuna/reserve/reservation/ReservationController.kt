@@ -1,6 +1,7 @@
 package site.komuna.reserve.reservation
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.http.ResponseEntity
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 import site.komuna.reserve.reservation.model.CreateReservationRequest
 import site.komuna.reserve.reservation.model.ReservationDto
 import site.komuna.reserve.reservation.model.ReservationStatus
+import site.komuna.reserve.reservation.model.ReservationStatusRequest
 import site.komuna.reserve.reservation.model.ReservationType
 import site.komuna.reserve.reservation.model.SearchReservationsFilter
 import java.time.OffsetDateTime
@@ -80,59 +82,82 @@ class ReservationController(
         return ResponseEntity.ok(response)
     }
 
-    @PostMapping("/confirm/{reservationId}")
+    @PostMapping("/confirm")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun confirmReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+    fun confirmReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val confirmedBy = authentication.name.toLong()
 
-        logger.info { "Received a request from user id ${authentication.name} to confirm a reservation with id: $reservationId" }
+        val reservations = newArrayList<ReservationDto>()
 
-        val response = service.confirmReservation(reservationId, confirmedBy)
+        request.reservationIds.forEach { reservationId ->
+            logger.info { "Received a request from user id ${authentication.name} to confirm a reservation with id: $reservationId" }
+            val response = service.confirmReservation(reservationId, confirmedBy)
+            reservations.add(ReservationDto(response))
+        }
 
-        return ResponseEntity.ok(ReservationDto(response))
+        return ResponseEntity.ok(reservations)
     }
 
-    @PostMapping("/reject/{reservationId}")
+    @PostMapping("/reject")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun rejectReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+    fun rejectReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val confirmedBy = authentication.name.toLong()
 
-        logger.info { "Received a request from user id ${authentication.name} to reject a reservation with id: $reservationId" }
+        val reservations = newArrayList<ReservationDto>()
 
-        val response = service.rejectReservationRequest(reservationId, confirmedBy)
+        request.reservationIds.forEach { reservationId ->
+            logger.info { "Received a request from user id ${authentication.name} to reject a reservation with id: $reservationId" }
+            val response = service.rejectReservationRequest(reservationId, confirmedBy)
+            reservations.add(ReservationDto(response))
+        }
 
-        return ResponseEntity.ok(ReservationDto(response))
+        return ResponseEntity.ok(reservations)
     }
 
-    @PostMapping("/requestCancel/{reservationId}")
-    fun requestCancelReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+    @PostMapping("/requestCancel")
+    fun requestCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
 
-        logger.info { "Received a request from user id ${authentication.name} to request cancellation of reservation with id: $reservationId" }
-        val response = service.requestCancelReservation(reservationId, cancelledBy)
+        val reservations = newArrayList<ReservationDto>()
 
-        return ResponseEntity.ok(ReservationDto(response))
+        request.reservationIds.forEach { reservationId ->
+            logger.info { "Received a request from user id ${authentication.name} to request cancellation of reservation with id: $reservationId" }
+            val response = service.requestCancelReservation(reservationId, cancelledBy)
+            reservations.add(ReservationDto(response))
+        }
+
+        return ResponseEntity.ok(reservations)
     }
 
-    @PostMapping("/confirmCancel/{reservationId}")
+    @PostMapping("/confirmCancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun confirmCancelReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+    fun confirmCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
 
-        logger.info { "Received a request from user id ${authentication.name} to APPROVE request cancellation of reservation with id: $reservationId" }
-        val response = service.confirmCancelReservation(reservationId, cancelledBy)
+        val reservations = newArrayList<ReservationDto>()
 
-        return ResponseEntity.ok(ReservationDto(response))
+        request.reservationIds.forEach { reservationId ->
+            logger.info { "Received a request from user id ${authentication.name} to APPROVE request cancellation of reservation with id: $reservationId" }
+            val response = service.confirmCancelReservation(reservationId, cancelledBy)
+            reservations.add(ReservationDto(response))
+        }
+
+        return ResponseEntity.ok(reservations)
     }
 
-    @PostMapping("/rejectCancel/{reservationId}")
+    @PostMapping("/rejectCancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun rejectCancelReservation(@PathVariable reservationId: Long, authentication: Authentication): ResponseEntity<ReservationDto> {
+    fun rejectCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
 
-        logger.info { "Received a request from user id ${authentication.name} to REJECT request cancellation of reservation with id: $reservationId" }
-        val response = service.rejectCancelReservation(reservationId, cancelledBy)
+        val reservations = newArrayList<ReservationDto>()
 
-        return ResponseEntity.ok(ReservationDto(response))
+        request.reservationIds.forEach { reservationId ->
+            logger.info { "Received a request from user id ${authentication.name} to REJECT request cancellation of reservation with id: $reservationId" }
+            val response = service.rejectCancelReservation(reservationId, cancelledBy)
+            reservations.add(ReservationDto(response))
+        }
+
+        return ResponseEntity.ok(reservations)
     }
 }

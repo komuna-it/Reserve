@@ -171,15 +171,18 @@ class ReservationService(
     }
 
     fun rejectReservationRequest(reservation: ReservationEntity, rejectedBy: UserEntity): ReservationEntity {
+        if (reservation.status == ReservationStatus.REJECTED || reservation.status == ReservationStatus.CANCELLED) {
+            throw CannotPerformThatActionException("Reservation is already in ${reservation.status} status")
+        }
 
-        // Save details
         confirmReservationService.saveRejectReservationDetails(reservation, rejectedBy)
-        val response = changeStatus(reservation, ReservationStatus.REJECTED)
 
+        val response = changeStatus(reservation, ReservationStatus.REJECTED)
         sseService.broadcast(ReserveEvents.RESERVATION_REJECTED, ReservationDto(response))
 
         return response
     }
+
 
     fun rejectReservationRequest(reservationId: Long, rejectedBy: Long): ReservationEntity {
         val user = userService.findById(rejectedBy)
