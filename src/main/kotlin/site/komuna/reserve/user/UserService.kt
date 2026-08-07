@@ -160,7 +160,6 @@ class UserService(
         repository.findAll()
     fun convertToUserDto(user: UserEntity): UserDto {
         val banned = banService.isUserBanned(user) != null
-
         return UserDto(user, banned)
     }
 

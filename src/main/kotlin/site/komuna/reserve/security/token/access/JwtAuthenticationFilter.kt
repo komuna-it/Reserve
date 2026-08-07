@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 import site.komuna.reserve.common.error.ErrorResponse
 import site.komuna.reserve.common.error.ErrorType
 import site.komuna.reserve.user.ban.BanService
+import java.time.OffsetDateTime
 
 @Component
 class JwtAuthenticationFilter(
@@ -57,6 +58,7 @@ class JwtAuthenticationFilter(
                 val errorResponse = ErrorResponse().apply {
                     this.errorType = ErrorType.USER_BANNED
                     this.message = "User is banned until ${ban.banExpires}"
+                    this.bannedUntil = objectMapper.writeValueAsString(ban.banExpires) as OffsetDateTime?
                 }
 
                 response.status = HttpServletResponse.SC_FORBIDDEN
