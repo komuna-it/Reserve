@@ -4,6 +4,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -45,7 +47,7 @@ class ReservationController(
         @RequestParam(required = false) startAtBefore: OffsetDateTime?,
         @RequestParam(required = false) status: List<String>?,
         @RequestParam(required = false) type: List<String>?,
-        pageable: Pageable
+        @PageableDefault(sort = ["startAt"], direction = Sort.Direction.DESC) pageable: Pageable
     ): Page<ReservationDto> {
 
         val filter = SearchReservationsFilter(
