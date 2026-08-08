@@ -2,6 +2,7 @@ package site.komuna.reserve.user
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.transaction.Transactional
+import org.springframework.data.domain.Page
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -15,6 +16,7 @@ import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanEntity
 import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
+import org.springframework.data.domain.Pageable
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.Duration
@@ -156,9 +158,10 @@ class UserService(
         return ban != null
     }
 
-    fun getUsers(): List<UserEntity> =
-        repository.findAll()
-
+    fun getUsers(pageable: Pageable): Page<UserDto> {
+        return repository.findByNickNot("SYSTEM", pageable)
+            .map { convertToUserDto(it) }
+    }
     fun convertToUserDto(user: UserEntity): UserDto {
         val activeBan = banService.isUserBanned(user)
 
