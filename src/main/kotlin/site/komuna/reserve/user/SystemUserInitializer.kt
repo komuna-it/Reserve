@@ -5,11 +5,14 @@ import jakarta.transaction.Transactional
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
+import site.komuna.reserve.email.EmailService
+import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.user.model.UserEntity
 
 @Component
 class SystemUserInitializer(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val emailService: EmailService,
 ) {
 
     companion object {

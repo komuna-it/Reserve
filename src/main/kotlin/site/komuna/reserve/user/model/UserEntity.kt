@@ -26,5 +26,6 @@ class UserEntity(
     var created: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
     var passwordChanged: OffsetDateTime? = null,
     var trusted: Boolean = false,
+    var preferredLanguage: String = "pl"
 ) {
 }

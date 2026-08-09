@@ -100,6 +100,15 @@ class UserController(
         return ResponseEntity.ok(users)
     }
 
+    @PatchMapping("/preferredLanguage/{language}")
+    fun setPreferredLanguage(@PathVariable language: String, authentication: Authentication): ResponseEntity<UserDto> {
+        val userId = authentication.name.toLong()
+
+        val response = service.assigneePreferredLanguage(userId, language)
+        val userDto = service.convertToUserDto(response)
+        return ResponseEntity.ok(userDto)
+    }
+
     @GetMapping("/test")
     fun test(): ResponseEntity<String> {
         return ResponseEntity.ok("""

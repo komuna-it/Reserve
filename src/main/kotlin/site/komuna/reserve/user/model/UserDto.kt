@@ -9,6 +9,7 @@ class UserDto(
     val role: Role,
     var trusted: Boolean = false,
     var banned: Boolean = false,
+    var preferredLanguage: String = "pl"
 ) {
     constructor(userEntity: UserEntity, banned: Boolean = false) : this(
         userEntity.id!!,
@@ -16,6 +17,7 @@ class UserDto(
         userEntity.nick,
         userEntity.role,
         trusted = userEntity.trusted,
-        banned = banned
+        banned = banned,
+        preferredLanguage = userEntity.preferredLanguage
     )
 }

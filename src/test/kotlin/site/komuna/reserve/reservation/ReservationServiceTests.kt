@@ -17,6 +17,8 @@ import site.komuna.reserve.reservation.confirm.ConfirmReservationService
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.reservation.model.ReservationStatus
 import site.komuna.reserve.room.RoomService
+import site.komuna.reserve.settings.SettingsService
+import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.sse.SseService
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
@@ -31,8 +33,8 @@ class ReservationServiceTests {
     private val organizationService: OrganizationService = mockk()
     private val roomService: RoomService = mockk()
     private val userService: UserService = mockk()
-    private val organizationMemberService: OrganizationMemberService = mockk()
     private val sseService: SseService = mockk()
+    private val settings: SettingsService = mockk()
 
     private val service = ReservationService(
         repository,
@@ -41,8 +43,9 @@ class ReservationServiceTests {
         organizationService,
         roomService,
         userService,
-        organizationMemberService,
-        sseService
+        sseService,
+        settings,
+        mockk()
     )
 
     @ParameterizedTest
@@ -93,6 +96,8 @@ class ReservationServiceTests {
                 any()
             )
         } just Runs
+
+        every { settings.getIntValue(SettingsKey.RESERVATION_CANCELLATION_WITHOUT_APPROVAL_HOURS) } returns 24
 
         every { repository.save(reservation) } returns reservation
 

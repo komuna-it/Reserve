@@ -9,6 +9,8 @@ import site.komuna.reserve.common.exception.EmailAlreadyTakenException
 import site.komuna.reserve.common.exception.EmailNotConfirmedException
 import site.komuna.reserve.common.exception.InvalidCredentialsException
 import site.komuna.reserve.common.exception.TokenExpiredException
+import site.komuna.reserve.email.EmailService
+import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.security.token.access.AccessToken
 import site.komuna.reserve.security.token.access.AccessTokenService
 import site.komuna.reserve.security.token.refresh.RefreshToken
@@ -25,6 +27,7 @@ class AuthService (
     private val accessTokenService: AccessTokenService,
     private val refreshTokenService: RefreshTokenService,
     private val verificationTokenService: VerificationTokenService,
+    private val emailService: EmailService,
 ) {
 
     fun register(request: RegisterRequest) {
@@ -33,7 +36,13 @@ class AuthService (
         }
 
         val newUser = userService.createUser(request)
-        verificationTokenService.generateVerificationTokenEntity(newUser)
+        val verificationToken = verificationTokenService.generateVerificationTokenEntity(newUser)
+        val model = mutableMapOf<String, Any>()
+
+        model["verificationToken"] = verificationToken.token
+        model["nick"] = newUser.nick
+
+        emailService.prepareAndSendEmail(EmailTemplateType.ACTIVATION_EMAIL, newUser, model)
     }
 
     fun login(email: String, password: String) : LoginResponse {
