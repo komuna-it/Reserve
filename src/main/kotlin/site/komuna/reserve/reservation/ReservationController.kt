@@ -4,6 +4,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -39,13 +41,13 @@ class ReservationController(
         @RequestParam(required = false) reservedBy: Long?,
         @RequestParam(required = false) organizationsId: List<Long>?,
         @RequestParam(defaultValue = "false") future: Boolean,
-        @RequestParam(defaultValue = "false") privateReservation: Boolean,
+        @RequestParam(required = false) privateReservation: Boolean?, // Zmiana na nullable Boolean?
         @RequestParam(required = false) roomId: Long?,
         @RequestParam(required = false) startAtAfter: OffsetDateTime?,
         @RequestParam(required = false) startAtBefore: OffsetDateTime?,
-        @RequestParam(required = false) status: List<String>?,
-        @RequestParam(required = false) type: List<String>?,
-        pageable: Pageable
+        @RequestParam(required = false) status: List<ReservationStatus>?,
+        @RequestParam(required = false) type: List<ReservationType>?,
+        @PageableDefault(sort = ["startAt"], direction = Sort.Direction.DESC) pageable: Pageable
     ): Page<ReservationDto> {
 
         val filter = SearchReservationsFilter(
@@ -58,13 +60,11 @@ class ReservationController(
             roomId = roomId,
             startAtAfter = startAtAfter,
             startAtBefore = startAtBefore,
-            status = status?.map { ReservationStatus.valueOf(it) }?.toMutableList() ?: mutableListOf(),
-            type = type?.map { ReservationType.valueOf(it) }?.toMutableList() ?: mutableListOf(),
+            status = status?.toMutableList() ?: mutableListOf(),
+            type = type?.toMutableList() ?: mutableListOf(),
         )
 
-        val response = service.getReservations(filter, pageable).map { ReservationDto(it) }
-
-        return response
+        return service.getReservations(filter, pageable).map { ReservationDto(it) }
     }
 
     @PostMapping("")

@@ -2,6 +2,8 @@ package site.komuna.reserve.user
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -17,6 +19,7 @@ import site.komuna.reserve.user.ban.model.BanRequest
 import site.komuna.reserve.user.ban.model.UnBanRequest
 import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
 import site.komuna.reserve.user.model.UserDto
+import org.springframework.data.domain.Pageable
 
 @RestController
 @RequestMapping("/users")
@@ -27,13 +30,14 @@ class UserController(
         private val logger = KotlinLogging.logger {}
     }
 
-    @GetMapping("/all")
-    fun getUsers(): ResponseEntity<List<UserDto>> {
-        val usersEntity = service.getUsers()
-        val usersDto = usersEntity.map { service.convertToUserDto(it) }
 
-        return ResponseEntity.ok(usersDto)
+    @GetMapping("/all")
+    fun getUsers(
+        @PageableDefault(size = 10, page = 0, sort = ["id"], direction = Sort.Direction.ASC) pageable: Pageable
+    ): ResponseEntity<org.springframework.data.domain.Page<UserDto>> {
+        return ResponseEntity.ok(service.getUsers(pageable))
     }
+
 
     @PutMapping("/assigneUser/{id}/role/{role}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")

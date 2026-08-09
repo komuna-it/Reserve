@@ -11,6 +11,7 @@ class ReservationDto(
     val endAt: OffsetDateTime,
     val duration: Long,
     val reservedBy: Long,
+    val reservedByText: String,
     val status: ReservationStatus,
     val organization: Long? = null,
 ) {
@@ -25,5 +26,5 @@ class ReservationDto(
         reservedBy = reservation.reservedBy.id!!,
         status = reservation.status,
         organization = reservation.organization?.id,
-    )
+        reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick    )
 }

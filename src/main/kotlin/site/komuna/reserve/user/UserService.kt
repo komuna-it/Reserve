@@ -2,6 +2,8 @@ package site.komuna.reserve.user
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.transaction.Transactional
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -15,9 +17,9 @@ import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanEntity
 import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
+import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.time.Duration
 
 @Service
 class UserService(
@@ -32,7 +34,6 @@ class UserService(
     }
 
     fun createUser(request: RegisterRequest): UserEntity {
-
         val now = OffsetDateTime.now(ZoneOffset.UTC)
         val email = request.email
         val nick = request.name
@@ -58,7 +59,7 @@ class UserService(
     }
 
     /**
-     * Method assignee user role to a user
+     * Method assigns user role to a user
      */
     fun assigneeUserRole(id: Long, role: Role, by: String): UserEntity {
         val targetUser = findById(id)
@@ -81,8 +82,8 @@ class UserService(
         return repository.save(targetUser)
     }
 
-    fun assigneeUserRole(id: Long, role: String, by: String): UserEntity {
-        val role = Role.from(role.uppercase())
+    fun assigneeUserRole(id: Long, roleStr: String, by: String): UserEntity {
+        val role = Role.from(roleStr.uppercase())
         return assigneeUserRole(id, role, by)
     }
 
@@ -114,7 +115,6 @@ class UserService(
 
     fun setTrusted(userID: Long, trusted: Boolean): UserEntity {
         val user = findById(userID)
-
         return setTrusted(user, trusted)
     }
 
@@ -141,7 +141,7 @@ class UserService(
 
         if (users.isEmpty()) throw ReserveException(HttpStatus.NOT_FOUND, "System user not found")
         if (users.size > 1) throw ReserveException(
-            HttpStatus.NOT_FOUND,
+            HttpStatus.CONFLICT,
             "We have more than one system user. That should not happen"
         )
 
@@ -171,18 +171,25 @@ class UserService(
         return ban != null
     }
 
-    fun getUsers(): List<UserEntity> =
-        repository.findAll()
-    fun convertToUserDto(user: UserEntity): UserDto {
-        val banned = banService.isUserBanned(user) != null
+    fun getUsers(pageable: Pageable): Page<UserDto> {
+        return repository.findByNickNot("SYSTEM", pageable)
+            .map { convertToUserDto(it) }
+    }
 
-        return UserDto(user, banned)
+    fun convertToUserDto(user: UserEntity): UserDto {
+        val activeBan = banService.isUserBanned(user)
+        val banDto = activeBan?.let { convertToBanDto(it) }
+
+        return UserDto(
+            userEntity = user,
+            banDto = banDto
+        )
     }
 
     fun convertToBanDto(ban: BanEntity): BanDto {
-        val user = convertToUserDto(ban.user)
-        val bannedBy = convertToUserDto(ban.bannedBy)
-        return BanDto(ban, user, bannedBy)
-    }
+        val userDto = UserDto(userEntity = ban.user, banDto = null)
+        val bannedByDto = UserDto(userEntity = ban.bannedBy, banDto = null)
 
+        return BanDto(ban, userDto, bannedByDto)
+    }
 }
