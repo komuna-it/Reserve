@@ -139,11 +139,10 @@ class OrganizationService(
 
         return organizationMemberService.addOwner(organization, user, addedByUser)
     }
-
     private fun canManageOrganization(user: UserEntity, organization: OrganizationEntity): Boolean {
         return user.role == site.komuna.reserve.user.Role.ADMIN ||
                 user.role == site.komuna.reserve.user.Role.MANAGER ||
-                isMember(user, organization)
+                isOwner(user, organization)
     }
 
     fun removeMember(userId: Long, organizationId: Long, removedBy: Long) {
@@ -173,8 +172,8 @@ class OrganizationService(
         val assignedByUser = userService.findById(assignedBy)
         val role = OrganizationMemberRole.from(roleStr)
 
-        if (!isOwner(assignedByUser, organization)) {
-            throw CannotPerformThatActionException("User is not an owner of the organization")
+        if (!canManageOrganization(assignedByUser, organization)) {
+            throw CannotPerformThatActionException("User does not have permission to assign roles in this organization")
         }
 
         return organizationMemberService.assignRole(organization, user, role)
