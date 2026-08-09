@@ -1,6 +1,7 @@
 package site.komuna.reserve.organization
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
@@ -20,8 +21,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 import site.komuna.reserve.organization.model.CreateOrganizationRequest
 import site.komuna.reserve.organization.model.OrganizationDto
 import site.komuna.reserve.organization.model.SearchOrganizationFilter
+import site.komuna.reserve.organization.model.UpdateTrustedOrganizationStatusRequest
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberDto
 import site.komuna.reserve.user.UserService
+import site.komuna.reserve.user.model.UserDto
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
@@ -137,16 +140,23 @@ class OrganizationController(
             .build()
     }
 
-    @PatchMapping("/{organizationId}/isTrusted/{isTrusted}")
+    @PatchMapping("/trustedStatus")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun setTrusted(
-        @PathVariable organizationId: Long,
-        @PathVariable isTrusted: Boolean,
+        @RequestBody request: UpdateTrustedOrganizationStatusRequest,
         authentication: Authentication
-    ): ResponseEntity<OrganizationDto> {
-        logger.info { "Received a request from user id ${authentication.name} to set organization with id: $organizationId to trusted: $isTrusted" }
+    ): ResponseEntity<List<OrganizationDto>> {
 
-        val organization = service.setTrusted(organizationId, isTrusted)
-        return ResponseEntity.ok(OrganizationDto(organization))
+        val isTrusted = request.trusted
+
+        val organizations = newArrayList<OrganizationDto>()
+
+        request.organizationIds.forEach { organizationId ->
+            logger.info { "Received a request from user id ${authentication.name} to set organization with id: $organizationId to trusted: $isTrusted" }
+            val organization = service.setTrusted(organizationId, isTrusted)
+            organizations.add(OrganizationDto(organization))
+        }
+
+        return ResponseEntity.ok(organizations)
     }
 }

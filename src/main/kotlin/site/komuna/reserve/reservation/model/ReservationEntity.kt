@@ -10,6 +10,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import org.hibernate.annotations.Formula
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.room.model.RoomEntity
 import site.komuna.reserve.user.Role
@@ -45,6 +46,9 @@ class ReservationEntity(
 
     var startAt: OffsetDateTime,
     var endAt: OffsetDateTime,
+
+    @Formula("COALESCE((SELECT o.name FROM organizations o WHERE o.id = organization_id), (SELECT u.nick FROM users u WHERE u.id = reserved_by_user_id))")
+    var r: String? = null // string wyciągający nazwę zespołu lub nazwę usera, jeśli to prywatna rezerwacja (dla sortowania z fronta)
 ) {
 
     constructor(request: CreateReservationRequest) : this(

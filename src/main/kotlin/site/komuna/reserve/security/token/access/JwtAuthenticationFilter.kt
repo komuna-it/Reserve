@@ -1,20 +1,25 @@
 package site.komuna.reserve.security.token.access
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import site.komuna.reserve.common.error.ErrorResponse
+import site.komuna.reserve.common.error.ErrorType
 import site.komuna.reserve.user.ban.BanService
+import java.time.OffsetDateTime
 
 @Component
 class JwtAuthenticationFilter(
     private val service: AccessTokenService,
     private val banService: BanService,
+    private val objectMapper: ObjectMapper
 ) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
@@ -40,7 +45,6 @@ class JwtAuthenticationFilter(
             return
         }
 
-
         // checking ban
         try {
             val userId = service.extractUserId(token)
@@ -50,9 +54,21 @@ class JwtAuthenticationFilter(
 
             if (ban != null) {
                 logger.warn("User $userId is banned until ${ban.banExpires}")
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "User is banned until ${ban.banExpires}")
+
+                val errorResponse = ErrorResponse().apply {
+                    this.errorType = ErrorType.USER_BANNED
+                    this.message = "User is banned until ${ban.banExpires}"
+                    this.bannedUntil = objectMapper.writeValueAsString(ban.banExpires) as OffsetDateTime?
+                }
+
+                response.status = HttpServletResponse.SC_FORBIDDEN
+                response.contentType = MediaType.APPLICATION_JSON_VALUE
+                response.characterEncoding = "UTF-8"
+
+                objectMapper.writeValue(response.writer, errorResponse)
                 return
             }
+
             val authentication = UsernamePasswordAuthenticationToken(
                 userId,
                 null,

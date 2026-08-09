@@ -1,28 +1,22 @@
 package site.komuna.reserve.user.ban.model
 
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.OneToOne
-import site.komuna.reserve.user.model.UserEntity
+import site.komuna.reserve.user.model.UserDto
 import java.time.OffsetDateTime
 
 class BanDto(
     var id: Long? = null,
-    var user: UserEntity,
+    var user: UserDto,
     var bannedAt: OffsetDateTime,
     var banExpires: OffsetDateTime?, // null if permanent ban
     var reason: String,
-    var bannedBy: UserEntity,
+    var bannedBy: UserDto,
 ) {
-    constructor(ban: BanEntity) : this(
+    constructor(ban: BanEntity, user: UserDto, bannedBy: UserDto) : this(
         ban.id,
-        ban.user,
+        user,
         ban.bannedAt,
         ban.banExpires,
         ban.reason,
-        ban.bannedBy
+        bannedBy
     )
 }
