@@ -64,7 +64,7 @@ class ReservationController(
             type = type?.toMutableList() ?: mutableListOf(),
         )
 
-        return service.getReservations(filter, pageable).map { ReservationDto(it) }
+        return service.getReservations(filter, pageable).map { service.getReservationDto(it) }
     }
 
     @PostMapping("")
@@ -77,7 +77,7 @@ class ReservationController(
 
         logger.trace { "Received a request from user ${request.reservedByUserId} to create a new reservation: $request" }
 
-        val response = ReservationDto(service.createReservation(request))
+        val response = service.getReservationDto(service.createReservation(request))
 
         return ResponseEntity.ok(response)
     }
@@ -92,7 +92,7 @@ class ReservationController(
         request.reservationIds.forEach { reservationId ->
             logger.info { "Received a request from user id ${authentication.name} to confirm a reservation with id: $reservationId" }
             val response = service.confirmReservation(reservationId, confirmedBy)
-            reservations.add(ReservationDto(response))
+            reservations.add(service.getReservationDto(response))
         }
 
         return ResponseEntity.ok(reservations)
@@ -108,7 +108,7 @@ class ReservationController(
         request.reservationIds.forEach { reservationId ->
             logger.info { "Received a request from user id ${authentication.name} to reject a reservation with id: $reservationId" }
             val response = service.rejectReservationRequest(reservationId, confirmedBy)
-            reservations.add(ReservationDto(response))
+            reservations.add(service.getReservationDto(response))
         }
 
         return ResponseEntity.ok(reservations)
@@ -123,7 +123,7 @@ class ReservationController(
         request.reservationIds.forEach { reservationId ->
             logger.info { "Received a request from user id ${authentication.name} to request cancellation of reservation with id: $reservationId" }
             val response = service.requestCancelReservation(reservationId, cancelledBy)
-            reservations.add(ReservationDto(response))
+            reservations.add(service.getReservationDto(response))
         }
 
         return ResponseEntity.ok(reservations)
@@ -139,7 +139,7 @@ class ReservationController(
         request.reservationIds.forEach { reservationId ->
             logger.info { "Received a request from user id ${authentication.name} to APPROVE request cancellation of reservation with id: $reservationId" }
             val response = service.confirmCancelReservation(reservationId, cancelledBy)
-            reservations.add(ReservationDto(response))
+            reservations.add(service.getReservationDto(response))
         }
 
         return ResponseEntity.ok(reservations)
@@ -155,7 +155,7 @@ class ReservationController(
         request.reservationIds.forEach { reservationId ->
             logger.info { "Received a request from user id ${authentication.name} to REJECT request cancellation of reservation with id: $reservationId" }
             val response = service.rejectCancelReservation(reservationId, cancelledBy)
-            reservations.add(ReservationDto(response))
+            reservations.add(service.getReservationDto(response))
         }
 
         return ResponseEntity.ok(reservations)

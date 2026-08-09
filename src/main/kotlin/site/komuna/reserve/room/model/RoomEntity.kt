@@ -13,5 +13,6 @@ class RoomEntity(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
     var name: String,
+    var isRecordable: Boolean = false,
 ) {
 }
