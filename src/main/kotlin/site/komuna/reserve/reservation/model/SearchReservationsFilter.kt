@@ -8,7 +8,7 @@ class SearchReservationsFilter(
     var reservedBy: Long? = null,
     var organizationsId: MutableList<Long> = mutableListOf(),
     val future : Boolean = false,
-    val private : Boolean = false,
+    val private: Boolean? = null,
     val roomId: Long? = null,
     val startAtAfter: OffsetDateTime? = null,
     val startAtBefore: OffsetDateTime? = null,
