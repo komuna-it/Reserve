@@ -9,6 +9,8 @@ import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.exception.ReservationNotFoundException
+import site.komuna.reserve.email.EmailService
+import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.organization.OrganizationService
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.model.SearchOrganizationFilter
@@ -23,6 +25,8 @@ import site.komuna.reserve.reservation.model.SearchReservationsFilter
 import site.komuna.reserve.reservation.validation.CreateReservationValidation
 import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.room.model.RoomEntity
+import site.komuna.reserve.settings.SettingsService
+import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.sse.ReserveEvents
 import site.komuna.reserve.sse.SseService
 import site.komuna.reserve.user.Role
@@ -31,6 +35,7 @@ import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import kotlin.String
 
 @Service
 class ReservationService(
@@ -40,8 +45,9 @@ class ReservationService(
     private val organizationService: OrganizationService,
     private val roomService: RoomService,
     private val userService: UserService,
-    private val organizationMemberService: OrganizationMemberService,
-    private val sseService: SseService
+    private val sseService: SseService,
+    private val settings: SettingsService,
+    private val emailService: EmailService
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -241,8 +247,10 @@ class ReservationService(
 
         val time = Duration.between(canceledAt, startAt)
 
-        // Allow user to cancel a reservation within 24 hours
-        if(time.toHours() > 24) {
+        // Allow user to cancel a reservation within X hours without admin approval
+        val allowedHour = settings.getIntValue(SettingsKey.RESERVATION_CANCELLATION_WITHOUT_APPROVAL_HOURS)
+
+        if(time.toHours() > allowedHour) {
             val response = cancelReservationBySystem(reservation, cancelledByUser, canceledAt)
             sseService.broadcast(ReserveEvents.RESERVATION_CANCELED, ReservationDto(response))
             return response

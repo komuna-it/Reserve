@@ -11,6 +11,9 @@ data class UserDto(
     val email: String,
     val nick: String,
     val role: Role,
+
+    var trusted: Boolean = false,
+    var preferredLanguage: String = "pl"
     val trusted: Boolean = false,
     val banDto: BanDto? = null
 ) {
@@ -23,6 +26,7 @@ data class UserDto(
         nick = userEntity.nick,
         role = userEntity.role,
         trusted = userEntity.trusted,
+        preferredLanguage = userEntity.preferredLanguage
         banDto = banDto
     )
 }

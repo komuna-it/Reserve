@@ -128,6 +128,13 @@ class OrganizationMemberService(
         return repository.findByOrganizationIdAndRole(organizationId, OrganizationMemberRole.OWNER)
             .map { it.user }
     }
+
+    fun getAllOrganizationUsers(organizationId: Long): List<UserEntity> {
+        val members = getMembersOfOrganization(organizationId)
+        val owners = getOwnersOfOrganization(organizationId)
+        return members + owners
+    }
+
     fun getAllOrganizationsForUser(userId: Long): List<OrganizationEntity> {
         return repository.findByUserId(userId).map { it.organization }
     }

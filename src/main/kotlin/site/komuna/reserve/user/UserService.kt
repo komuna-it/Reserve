@@ -39,6 +39,7 @@ class UserService(
         val nick = request.name
         val password = passwordEncoder.encode(request.password)
         val role = Role.USER
+        val preferredLanguage = request.preferredLanguage
 
         val savedUser = repository.save(
             UserEntity(
@@ -47,7 +48,8 @@ class UserService(
                 password = password,
                 role = role,
                 created = now,
-                passwordChanged = now
+                passwordChanged = now,
+                preferredLanguage = preferredLanguage
             )
         )
 
@@ -83,6 +85,13 @@ class UserService(
     fun assigneeUserRole(id: Long, roleStr: String, by: String): UserEntity {
         val role = Role.from(roleStr.uppercase())
         return assigneeUserRole(id, role, by)
+    }
+
+    fun assigneePreferredLanguage(id: Long, language: String): UserEntity {
+        val user = findById(id)
+
+        user.preferredLanguage = language
+        return repository.save(user)
     }
 
     @Transactional
@@ -137,6 +146,12 @@ class UserService(
         )
 
         return users[0]
+    }
+
+    fun getAllAdmins(): List<UserEntity> {
+        val admins = repository.findByRole(Role.ADMIN)
+        val managers = repository.findByRole(Role.MANAGER)
+        return admins + managers
     }
 
     // Validation methods
