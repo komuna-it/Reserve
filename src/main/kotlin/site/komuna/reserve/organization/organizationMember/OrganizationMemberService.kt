@@ -58,7 +58,8 @@ class OrganizationMemberService(
 
     @Transactional
     fun assignRole(organization: OrganizationEntity, user: UserEntity, role: OrganizationMemberRole): OrganizationMemberEntity {
-        val membership = getOrganizationMember(user, organization)
+        val membership =
+            getOrganizationMemberOrNull(user, organization) ?: return addUser(organization, user, user, role)
 
         if (membership.role == OrganizationMemberRole.OWNER && role == OrganizationMemberRole.MEMBER) {
             val owners = getOwnersOfOrganization(organization.id!!)
