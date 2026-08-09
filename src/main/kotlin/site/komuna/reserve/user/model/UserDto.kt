@@ -13,8 +13,7 @@ data class UserDto(
     val role: Role,
 
     var trusted: Boolean = false,
-    var preferredLanguage: String = "pl"
-    val trusted: Boolean = false,
+    var preferredLanguage: String = "pl",
     val banDto: BanDto? = null
 ) {
     constructor(
@@ -26,7 +25,7 @@ data class UserDto(
         nick = userEntity.nick,
         role = userEntity.role,
         trusted = userEntity.trusted,
-        preferredLanguage = userEntity.preferredLanguage
+        preferredLanguage = userEntity.preferredLanguage,
         banDto = banDto
     )
 }
