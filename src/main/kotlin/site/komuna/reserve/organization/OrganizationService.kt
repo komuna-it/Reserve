@@ -150,9 +150,9 @@ class OrganizationService(
         val user = userService.findById(userId)
         val removedByUser = userService.findById(removedBy)
 
-        if (!isOwner(removedByUser, organization)) {
-            logger.warn { "${removedByUser.nick} tried to remove ${user.nick} from ${organization.name} without being an owner" }
-            throw CannotPerformThatActionException("User is not an owner of the organization")
+        if (!canManageOrganization(removedByUser, organization)) {
+            logger.warn { "${removedByUser.nick} tried to remove ${user.nick} from ${organization.name} without permissions" }
+            throw CannotPerformThatActionException("User does not have permission to remove members from this organization")
         }
 
         if (isOwner(user, organization)) {
