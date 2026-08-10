@@ -10,14 +10,21 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberRole
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
 
 @Entity
-@Table(name = "organization_members")
-class OrganizationMemberEntity (
+@Table(
+    name = "organization_members",
+    uniqueConstraints = [
+        UniqueConstraint(columnNames = ["organization_id", "user_id"])
+    ]
+)
+
+class   OrganizationMemberEntity (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,

@@ -17,6 +17,7 @@ import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberRole
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
+import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberDto
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
@@ -49,8 +50,8 @@ class OrganizationService(
                 } else {
                     OrganizationDto(
                         org,
-                        organizationMemberService.getMembersOfOrganization(org.id!!).map { UserDto(it) },
-                        organizationMemberService.getOwnersOfOrganization(org.id!!).map { UserDto(it) }
+                        organizationMemberService.getMembersOfOrganization(org.id!!).map { OrganizationMemberDto(it) },
+                        organizationMemberService.getOwnersOfOrganization(org.id!!).map { OrganizationMemberDto(it) }
                     )
                 }
             }
@@ -118,12 +119,31 @@ class OrganizationService(
         val user = userService.findById(userId)
         val addedByUser = userService.findById(addedBy)
 
-        if (!isMember(addedByUser, organization)) {
-            logger.warn { "${addedByUser.nick} tried to add ${user.nick} to ${organization.name} but is not a member" }
-            throw CannotPerformThatActionException("User is not a member of the organization")
+        if (!canManageOrganization(addedByUser, organization)) {
+            logger.warn { "${addedByUser.nick} tried to add ${user.nick} to ${organization.name} without permissions" }
+            throw CannotPerformThatActionException("User does not have permission to add members to this organization")
         }
 
         return organizationMemberService.addMember(organization, user, addedByUser)
+    }
+
+    @Transactional
+    fun addOwner(userId: Long, organizationId: Long, addedBy: Long): OrganizationMemberEntity {
+        val organization = getOrganization(organizationId)
+        val user = userService.findById(userId)
+        val addedByUser = userService.findById(addedBy)
+
+        if (!canManageOrganization(addedByUser, organization)) {
+            logger.warn { "${addedByUser.nick} tried to add ${user.nick} as owner to ${organization.name} without permissions" }
+            throw CannotPerformThatActionException("User does not have permission to add owners to this organization")
+        }
+
+        return organizationMemberService.addOwner(organization, user, addedByUser)
+    }
+    private fun canManageOrganization(user: UserEntity, organization: OrganizationEntity): Boolean {
+        return user.role == site.komuna.reserve.user.Role.ADMIN ||
+                user.role == site.komuna.reserve.user.Role.MANAGER ||
+                isOwner(user, organization)
     }
 
     fun removeMember(userId: Long, organizationId: Long, removedBy: Long) {
@@ -131,9 +151,9 @@ class OrganizationService(
         val user = userService.findById(userId)
         val removedByUser = userService.findById(removedBy)
 
-        if (!isOwner(removedByUser, organization)) {
-            logger.warn { "${removedByUser.nick} tried to remove ${user.nick} from ${organization.name} without being an owner" }
-            throw CannotPerformThatActionException("User is not an owner of the organization")
+        if (!canManageOrganization(removedByUser, organization)) {
+            logger.warn { "${removedByUser.nick} tried to remove ${user.nick} from ${organization.name} without permissions" }
+            throw CannotPerformThatActionException("User does not have permission to remove members from this organization")
         }
 
         if (isOwner(user, organization)) {
@@ -153,8 +173,8 @@ class OrganizationService(
         val assignedByUser = userService.findById(assignedBy)
         val role = OrganizationMemberRole.from(roleStr)
 
-        if (!isOwner(assignedByUser, organization)) {
-            throw CannotPerformThatActionException("User is not an owner of the organization")
+        if (!canManageOrganization(assignedByUser, organization)) {
+            throw CannotPerformThatActionException("User does not have permission to assign roles in this organization")
         }
 
         return organizationMemberService.assignRole(organization, user, role)

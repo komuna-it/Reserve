@@ -93,6 +93,23 @@ class OrganizationController(
             .body(OrganizationMemberDto(result))
     }
 
+    @PostMapping("/addOwner/{id}/toOrganization/{organizationId}")
+    fun addOwnerToOrganization(
+        @PathVariable id: Long,
+        @PathVariable organizationId: Long,
+        authentication: Authentication
+    ): ResponseEntity<OrganizationMemberDto> {
+        val addedBy = authentication.name.toLong()
+
+        logger.info { "Received a request from user id ${authentication.name} to add user with id: $id as OWNER to organization with id: $organizationId" }
+
+        val result = service.addOwner(id, organizationId, addedBy)
+
+        return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(OrganizationMemberDto(result))
+    }
+
     @PostMapping("/removeMember/{id}/fromOrganization/{organizationId}")
     fun removeMemberFromOrganization(
         @PathVariable id: Long,

@@ -8,6 +8,7 @@ import site.komuna.reserve.common.exception.Conflict409
 import site.komuna.reserve.common.exception.OrganizationMemberNotFoundException
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
+import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -19,6 +20,10 @@ class OrganizationMemberService(
 
     companion object {
         private val logger = KotlinLogging.logger {}
+    }
+
+    fun isMember(userId: Long, organizationId: Long): Boolean {
+        return repository.existsByOrganizationIdAndUserId(organizationId, userId)
     }
 
     fun addMember(organization: OrganizationEntity, user: UserEntity, addedBy: UserEntity): OrganizationMemberEntity {
@@ -58,17 +63,26 @@ class OrganizationMemberService(
 
     @Transactional
     fun assignRole(organization: OrganizationEntity, user: UserEntity, role: OrganizationMemberRole): OrganizationMemberEntity {
-        val membership = getOrganizationMember(user, organization)
+        val memberships = repository.findAllByOrganizationIdAndUserId(organization.id!!, user.id!!)
 
-        if (membership.role == OrganizationMemberRole.OWNER && role == OrganizationMemberRole.MEMBER) {
+        if (memberships.isEmpty()) {
+            return addUser(organization, user, user, role)
+        }
+
+        if (memberships.any { it.role == OrganizationMemberRole.OWNER } && role == OrganizationMemberRole.MEMBER) {
             val owners = getOwnersOfOrganization(organization.id!!)
             if (owners.size <= 1) {
                 throw Conflict409("Organization must have at least one owner")
             }
         }
 
-        membership.role = role
-        return repository.save(membership)
+        if (memberships.size > 1) {
+            repository.deleteAll(memberships.drop(1))
+        }
+
+        val primaryMembership = memberships.first()
+        primaryMembership.role = role
+        return repository.save(primaryMembership)
     }
 
     @Transactional
@@ -100,6 +114,15 @@ class OrganizationMemberService(
             ?: throw OrganizationMemberNotFoundException(user.id!!, organization.id!!)
     }
 
+
+
+    fun isOwnerOrAdmin(user: UserEntity, organization: OrganizationEntity): Boolean {
+        if (user.role == Role.ADMIN) {
+            return true
+        }
+        return isOwner(user, organization)
+    }
+
     fun isOwner(user: UserEntity, organization: OrganizationEntity): Boolean {
         val memberships = repository.findAllByOrganizationIdAndUserId(organization.id!!, user.id!!)
         return memberships.any { it.role == OrganizationMemberRole.OWNER }
@@ -108,25 +131,24 @@ class OrganizationMemberService(
     fun getOrganizationMemberOrNull(user: UserEntity, organization: OrganizationEntity): OrganizationMemberEntity? {
         return repository.findAllByOrganizationIdAndUserId(organization.id!!, user.id!!).firstOrNull()
     }
+
     fun getOrganizationsOwnedByUser(userId: Long): List<OrganizationEntity> {
         return repository.findByUserIdAndRole(userId, OrganizationMemberRole.OWNER)
             .map { it.organization }
     }
 
-    // fetch when users is a member or an owner
     fun getOrganizationsAssignedToUser(userId: Long): List<OrganizationEntity> {
         return repository.findByUserId(userId)
             .map { it.organization }
+            .distinctBy { it.id }
     }
 
-    fun getMembersOfOrganization(organizationId: Long): List<UserEntity> {
+    fun getMembersOfOrganization(organizationId: Long): List<OrganizationMemberEntity> {
         return repository.findByOrganizationIdAndRole(organizationId, OrganizationMemberRole.MEMBER)
-            .map { it.user }
     }
 
-    fun getOwnersOfOrganization(organizationId: Long): List<UserEntity> {
+    fun getOwnersOfOrganization(organizationId: Long): List<OrganizationMemberEntity> {
         return repository.findByOrganizationIdAndRole(organizationId, OrganizationMemberRole.OWNER)
-            .map { it.user }
     }
 
     fun getAllOrganizationUsers(organizationId: Long): List<UserEntity> {
@@ -136,7 +158,10 @@ class OrganizationMemberService(
     }
 
     fun getAllOrganizationsForUser(userId: Long): List<OrganizationEntity> {
-        return repository.findByUserId(userId).map { it.organization }
+        return repository.findByUserId(userId)
+            .map { it.organization }
+            .distinctBy { it.id }
     }
+
 
 }
