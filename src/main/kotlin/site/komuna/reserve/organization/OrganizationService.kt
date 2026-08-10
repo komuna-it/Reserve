@@ -17,6 +17,7 @@ import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberRole
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
+import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberDto
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
@@ -49,8 +50,8 @@ class OrganizationService(
                 } else {
                     OrganizationDto(
                         org,
-                        organizationMemberService.getMembersOfOrganization(org.id!!).map { UserDto(it) },
-                        organizationMemberService.getOwnersOfOrganization(org.id!!).map { UserDto(it) }
+                        organizationMemberService.getMembersOfOrganization(org.id!!).map { OrganizationMemberDto(it) },
+                        organizationMemberService.getOwnersOfOrganization(org.id!!).map { OrganizationMemberDto(it) }
                     )
                 }
             }

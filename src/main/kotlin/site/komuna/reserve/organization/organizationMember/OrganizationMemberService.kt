@@ -110,9 +110,8 @@ class OrganizationMemberService(
             ?: throw OrganizationMemberNotFoundException(user.id!!, organization.id!!)
     }
 
-    /**
-     * Zwraca true jeśli użytkownik jest OWNEREM organizacji LUB posiada globalną rolę ADMIN.
-     */
+
+
     fun isOwnerOrAdmin(user: UserEntity, organization: OrganizationEntity): Boolean {
         if (user.role == Role.ADMIN) {
             return true
@@ -140,19 +139,18 @@ class OrganizationMemberService(
             .distinctBy { it.id }
     }
 
-    fun getMembersOfOrganization(organizationId: Long): List<UserEntity> {
+    fun getMembersOfOrganization(organizationId: Long): List<OrganizationMemberEntity> {
         return repository.findByOrganizationIdAndRole(organizationId, OrganizationMemberRole.MEMBER)
-            .map { it.user }
     }
 
-    fun getOwnersOfOrganization(organizationId: Long): List<UserEntity> {
+    fun getOwnersOfOrganization(organizationId: Long): List<OrganizationMemberEntity> {
         return repository.findByOrganizationIdAndRole(organizationId, OrganizationMemberRole.OWNER)
-            .map { it.user }
     }
-
     fun getAllOrganizationsForUser(userId: Long): List<OrganizationEntity> {
         return repository.findByUserId(userId)
             .map { it.organization }
             .distinctBy { it.id }
     }
+
+
 }
