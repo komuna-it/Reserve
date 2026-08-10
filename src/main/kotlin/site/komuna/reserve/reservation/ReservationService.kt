@@ -140,19 +140,22 @@ class ReservationService(
         return repository.findById(id).orElseThrow { ReservationNotFoundException(id) }
     }
 
-    fun createReservation(request: CreateReservationRequest): ReservationEntity {
-        prepareCreateRequest(request)
-        validate(request)
+    fun createReservation(request: CreateReservationRequest, currentUser: UserEntity): ReservationEntity {
+        prepareCreateRequest(request, currentUser)
+        validate(request, currentUser)
 
         val response = repository.save(ReservationEntity(request))
 
-        confirmReservationIfTrusted(response)
+        if (currentUser.role == Role.ADMIN) {
+            confirmReservationBySystem(response)
+        } else {
+            confirmReservationIfTrusted(response)
+        }
 
         sseService.broadcast(ReserveEvents.RESERVATION_CREATED, ReservationDto(response))
 
         return response
     }
-
     /**
      * Reservation could be automatically confirmed if a user or organization is trusted
      */
@@ -292,7 +295,6 @@ class ReservationService(
         return response
     }
 
-    // Reject cancel reservation
     fun rejectCancelReservation(reservationId: Long, approvedBy: Long): ReservationEntity {
         val reservation = findById(reservationId)
         val approvedByUser = userService.findById(approvedBy)
@@ -311,23 +313,26 @@ class ReservationService(
         return response
     }
 
-    // Prepare request
-    fun prepareCreateRequest(request: CreateReservationRequest) {
-        request.reservedByUser = userService.findById(request.reservedByUserId!!)
+    fun prepareCreateRequest(request: CreateReservationRequest, currentUser: UserEntity) {
+        val targetUserId: Long = if (currentUser.role == Role.ADMIN && request.reservedByUserId != null) {
+            request.reservedByUserId!!
+        } else {
+            currentUser.id!!
+        }
+
+        request.reservedByUserId = targetUserId
+        request.reservedByUser = userService.findById(targetUserId)
         request.room = roomService.getRoom(request.roomId)
         request.endAt = request.startAt.plusMinutes(request.duration.toMinutes())
 
-        if(request.organizationId != null) {
-            request.organization = organizationService.getOrganization(request.organizationId!!)
-        }
+        request.organization = request.organizationId?.let { organizationService.getOrganization(it) }
     }
 
 
     // VALIDATION
-    fun validate(request: CreateReservationRequest) {
-
-        val validator = CreateReservationValidation(organizationService, repository)
-        validator.validate(request)
+    fun validate(request: CreateReservationRequest, currentUser: UserEntity) {
+        val validator = CreateReservationValidation(organizationService, repository, organizationMemberService)
+        validator.validate(request, currentUser)
     }
 
     fun changeStatus(reservation: ReservationEntity, status: ReservationStatus): ReservationEntity {

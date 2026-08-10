@@ -22,6 +22,10 @@ class OrganizationMemberService(
         private val logger = KotlinLogging.logger {}
     }
 
+    fun isMember(userId: Long, organizationId: Long): Boolean {
+        return repository.existsByOrganizationIdAndUserId(organizationId, userId)
+    }
+
     fun addMember(organization: OrganizationEntity, user: UserEntity, addedBy: UserEntity): OrganizationMemberEntity {
         logger.info { "${addedBy.nick} added ${user.nick} to ${organization.name}" }
         return addUser(organization, user, addedBy, OrganizationMemberRole.MEMBER)
