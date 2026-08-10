@@ -49,7 +49,8 @@ class ReservationService(
     private val sseService: SseService,
     private val settings: SettingsService,
     private val emailService: EmailService,
-    private val pricingService: PricingService
+    private val pricingService: PricingService,
+    private val organizationMemberService: OrganizationMemberService,
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}

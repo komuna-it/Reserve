@@ -153,7 +153,9 @@ class OrganizationMemberService(
 
     fun getAllOrganizationUsers(organizationId: Long): List<UserEntity> {
         val members = getMembersOfOrganization(organizationId)
+            .map { it.user }
         val owners = getOwnersOfOrganization(organizationId)
+            .map { it.user }
         return members + owners
     }
 
