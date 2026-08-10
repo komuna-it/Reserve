@@ -1,30 +1,26 @@
 package site.komuna.reserve.organization.model
 
-import org.apache.catalina.User
-import site.komuna.reserve.user.model.UserDto
+import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberDto
+import java.time.OffsetDateTime
 
-class OrganizationDto(
-    var id: Long?,
-    var name: String,
-    var createdAt: String,
-    var members: List<UserDto>? = null,
-    var owners: List<UserDto>? = null,
-    var trusted: Boolean = false,
+data class OrganizationDto(
+    val id: Long?,
+    val name: String,
+    val createdAt: OffsetDateTime? = null,
+    val members: List<OrganizationMemberDto> = emptyList(),
+    val owners: List<OrganizationMemberDto> = emptyList(),
+    val trusted: Boolean = false,
 ) {
-
-    constructor(organizationEntity: OrganizationEntity) : this(
-        organizationEntity.id,
-        organizationEntity.name,
-        organizationEntity.created.toString(),
-        trusted = organizationEntity.trusted
-    )
-
-    constructor(organizationDto: OrganizationEntity, members: List<UserDto>, owners: List<UserDto>): this(
-        id = organizationDto.id,
-        name = organizationDto.name,
-        createdAt = organizationDto.created.toString(),
+    constructor(
+        organization: OrganizationEntity,
+        members: List<OrganizationMemberDto> = emptyList(),
+        owners: List<OrganizationMemberDto> = emptyList()
+    ) : this(
+        id = organization.id,
+        name = organization.name,
+        createdAt = organization.created,
+        trusted = organization.trusted,
         members = members,
-        owners = owners,
-        trusted = organizationDto.trusted
+        owners = owners
     )
 }

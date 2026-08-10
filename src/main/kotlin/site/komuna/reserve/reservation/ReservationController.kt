@@ -9,26 +9,17 @@ import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
-import site.komuna.reserve.reservation.model.CreateReservationRequest
-import site.komuna.reserve.reservation.model.ReservationDto
-import site.komuna.reserve.reservation.model.ReservationStatus
-import site.komuna.reserve.reservation.model.ReservationStatusRequest
-import site.komuna.reserve.reservation.model.ReservationType
-import site.komuna.reserve.reservation.model.SearchReservationsFilter
+import org.springframework.web.bind.annotation.*
+import site.komuna.reserve.reservation.model.*
+import site.komuna.reserve.user.UserService
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
 @RestController
 @RequestMapping("/reservations")
 class ReservationController(
-    private val service: ReservationService
+    private val service: ReservationService,
+    private val userService: UserService
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -41,7 +32,7 @@ class ReservationController(
         @RequestParam(required = false) reservedBy: Long?,
         @RequestParam(required = false) organizationsId: List<Long>?,
         @RequestParam(defaultValue = "false") future: Boolean,
-        @RequestParam(required = false) privateReservation: Boolean?, // Zmiana na nullable Boolean?
+        @RequestParam(required = false) privateReservation: Boolean?,
         @RequestParam(required = false) roomId: Long?,
         @RequestParam(required = false) startAtAfter: OffsetDateTime?,
         @RequestParam(required = false) startAtBefore: OffsetDateTime?,
@@ -68,16 +59,19 @@ class ReservationController(
     }
 
     @PostMapping("")
-    fun createReservation(@RequestBody request: CreateReservationRequest, authentication: Authentication): ResponseEntity<ReservationDto> {
+    fun createReservation(
+        @RequestBody request: CreateReservationRequest,
+        authentication: Authentication
+    ): ResponseEntity<ReservationDto> {
+        val currentUserId = authentication.name.toLong()
+        val currentUser = userService.findById(currentUserId)
 
-        request.reservedByUserId = authentication.name.toLong()
         request.reservedAt = OffsetDateTime.now(ZoneOffset.UTC)
-
         request.startAt = request.startAt.withSecond(0).withNano(0)
 
-        logger.trace { "Received a request from user ${request.reservedByUserId} to create a new reservation: $request" }
+        logger.trace { "Received a request from user $currentUserId to create a new reservation: $request" }
 
-        val response = service.getReservationDto(service.createReservation(request))
+        val response = service.getReservationDto(service.createReservation(request, currentUser))
 
         return ResponseEntity.ok(response)
     }
@@ -86,7 +80,6 @@ class ReservationController(
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun confirmReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val confirmedBy = authentication.name.toLong()
-
         val reservations = newArrayList<ReservationDto>()
 
         request.reservationIds.forEach { reservationId ->
@@ -102,7 +95,6 @@ class ReservationController(
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun rejectReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val confirmedBy = authentication.name.toLong()
-
         val reservations = newArrayList<ReservationDto>()
 
         request.reservationIds.forEach { reservationId ->
@@ -117,7 +109,6 @@ class ReservationController(
     @PostMapping("/requestCancel")
     fun requestCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
-
         val reservations = newArrayList<ReservationDto>()
 
         request.reservationIds.forEach { reservationId ->
@@ -133,7 +124,6 @@ class ReservationController(
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun confirmCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
-
         val reservations = newArrayList<ReservationDto>()
 
         request.reservationIds.forEach { reservationId ->
@@ -149,7 +139,6 @@ class ReservationController(
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun rejectCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
-
         val reservations = newArrayList<ReservationDto>()
 
         request.reservationIds.forEach { reservationId ->
