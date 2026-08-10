@@ -25,6 +25,7 @@ import site.komuna.reserve.reservation.model.SearchReservationsFilter
 import site.komuna.reserve.reservation.validation.CreateReservationValidation
 import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.room.model.RoomEntity
+import site.komuna.reserve.room.pricing.PricingService
 import site.komuna.reserve.settings.SettingsService
 import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.sse.ReserveEvents
@@ -47,7 +48,8 @@ class ReservationService(
     private val userService: UserService,
     private val sseService: SseService,
     private val settings: SettingsService,
-    private val emailService: EmailService
+    private val emailService: EmailService,
+    private val pricingService: PricingService
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -142,6 +144,7 @@ class ReservationService(
 
             cb.and(*predicates.toTypedArray())
         }
+
     fun findById(id: Long): ReservationEntity {
         return repository.findById(id).orElseThrow { ReservationNotFoundException(id) }
     }
@@ -215,7 +218,6 @@ class ReservationService(
 
         return response
     }
-
 
     fun rejectReservationRequest(reservationId: Long, rejectedBy: Long): ReservationEntity {
         val user = userService.findById(rejectedBy)
@@ -336,7 +338,6 @@ class ReservationService(
         request.organization = request.organizationId?.let { organizationService.getOrganization(it) }
     }
 
-
     // VALIDATION
     fun validate(request: CreateReservationRequest, currentUser: UserEntity) {
         val validator = CreateReservationValidation(organizationService, repository, organizationMemberService)
@@ -358,6 +359,11 @@ class ReservationService(
         }
 
         return filter
+    }
+
+    fun getReservationDto(reservation: ReservationEntity): ReservationDto {
+        val price = pricingService.getPrice(reservation)
+        return ReservationDto(reservation, price)
     }
 
 }

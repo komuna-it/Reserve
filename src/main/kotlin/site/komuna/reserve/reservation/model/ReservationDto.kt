@@ -14,6 +14,7 @@ class ReservationDto(
     val reservedByText: String,
     val status: ReservationStatus,
     val organization: Long? = null,
+    val price: Int? = null,
 ) {
 
     constructor(reservation: ReservationEntity) : this(
@@ -26,5 +27,19 @@ class ReservationDto(
         reservedBy = reservation.reservedBy.id!!,
         status = reservation.status,
         organization = reservation.organization?.id,
-        reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick    )
+        reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick)
+
+    constructor(reservation: ReservationEntity, price: Int) : this(
+        id = reservation.id!!,
+        type = reservation.type,
+        room = reservation.room.id!!,
+        startAt = reservation.startAt,
+        endAt = reservation.endAt,
+        duration = Duration.between(reservation.startAt, reservation.endAt).toMinutes(),
+        reservedBy = reservation.reservedBy.id!!,
+        status = reservation.status,
+        organization = reservation.organization?.id,
+        reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick,
+        price = price
+    )
 }

@@ -45,6 +45,7 @@ class ReservationServiceTests {
         userService,
         sseService,
         settings,
+        mockk(),
         mockk()
     )
 
