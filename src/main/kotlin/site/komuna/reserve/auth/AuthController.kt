@@ -101,6 +101,8 @@ class AuthController(
             .sameSite("Lax")
             .build()
 
+        logger.info { "New access token: ${newAccessToken.token}" }
+
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
         return ResponseEntity.ok().build()
     }

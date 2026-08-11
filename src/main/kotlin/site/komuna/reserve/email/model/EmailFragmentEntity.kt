@@ -14,8 +14,7 @@ import jakarta.persistence.Table
 class EmailFragmentEntity(
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    var id: Long? = null,
+    var name: String? = null,
 
     @Column(columnDefinition = "TEXT")
     var fragment: String,
