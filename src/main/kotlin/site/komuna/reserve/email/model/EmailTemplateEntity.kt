@@ -16,7 +16,7 @@ import jakarta.persistence.Table
 @Table(name = "email_templates")
 class EmailTemplateEntity(
     @Id
-    var id: Long? = null,
+    var name: String? = null,
 
     @Enumerated(EnumType.STRING)
     var type: EmailTemplateType,

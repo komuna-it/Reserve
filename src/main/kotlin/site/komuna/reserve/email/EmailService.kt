@@ -51,13 +51,13 @@ class EmailService(
     fun prepareAndSendEmail(type: EmailTemplateType, user: UserEntity, model: MutableMap<String, Any>){
         logger.info { "Sending email ${type.name} to user: ${user.email}" }
 
+        val language = user.preferredLanguage ?: "en"
+
         model["originalEmail"] = user.email
         model["emailTemplate"] = type.name
-        model["emailLanguage"] = user.preferredLanguage
+        model["emailLanguage"] = language
 
-        model["dupa"] = "Dupa XD"
-
-        val template = getTemplate(type, user.preferredLanguage)
+        val template = getTemplate(type, language)
         val body = render(template, model)
 
         sendEmail(template.subject, body, user.email, model)
