@@ -20,6 +20,8 @@ import site.komuna.reserve.user.ban.model.UnBanRequest
 import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
 import site.komuna.reserve.user.model.UserDto
 import org.springframework.data.domain.Pageable
+import org.springframework.web.bind.annotation.PostMapping
+import site.komuna.reserve.user.model.ForgotPasswordRequest
 import site.komuna.reserve.user.model.UpdatePasswordRequest
 
 @RestController
@@ -57,6 +59,13 @@ class UserController(
         val userEntity = service.updatePassword(userId, request.currentPassword, request.newPassword)
         val userDto = service.convertToUserDto(userEntity)
         return ResponseEntity.ok(userDto)
+    }
+
+    @PostMapping("/forgotPassword")
+    fun forgotPassword(@RequestBody request: ForgotPasswordRequest): ResponseEntity<Void> {
+        service.forgotPassword(request.email)
+
+        return ResponseEntity.ok().build()
     }
 
     @PutMapping("/ban")

@@ -54,6 +54,7 @@ class SecurityConfig(
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/rooms/**").permitAll()
                     .requestMatchers("/sse").permitAll()
+                    .requestMatchers("/users/forgotPassword").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(

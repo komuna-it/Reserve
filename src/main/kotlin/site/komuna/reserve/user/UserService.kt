@@ -20,6 +20,7 @@ import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanEntity
 import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
+import java.security.SecureRandom
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -150,6 +151,24 @@ class UserService(
         return response
     }
 
+    fun forgotPassword(email: String) {
+        val user = findByEmail(email)
+
+        val newPassword = generatePassword()
+        val encodedPassword = passwordEncoder.encode(newPassword)
+
+        user.password = encodedPassword
+        user.passwordChanged = OffsetDateTime.now(ZoneOffset.UTC)
+
+        val model = mutableMapOf<String, Any>()
+        model["nick"] = user.nick
+        model["newPassword"] = newPassword
+
+        emailService.sendEmailToUser(EmailTemplateType.REMIND_PASSWORD, user, model)
+
+        repository.save(user)
+    }
+
     // get methods
     fun findById(id: Long): UserEntity {
         return repository.findById(id).orElseThrow { UserNotFoundException(id) }
@@ -202,6 +221,35 @@ class UserService(
         return repository.findByNickNot("SYSTEM", pageable)
             .map { convertToUserDto(it) }
     }
+
+    // Password generation
+    fun generatePassword(length: Int = 16): String {
+        val random = SecureRandom()
+
+        val upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        val lower = "abcdefghijklmnopqrstuvwxyz"
+        val digits = "0123456789"
+        val special = "!@#$%^&*"
+        val all = upper + lower + digits + special
+
+        require(length >= 4)
+
+        val chars = mutableListOf(
+            upper.random(random),
+            lower.random(random),
+            digits.random(random),
+            special.random(random)
+        )
+
+        repeat(length - 4) {
+            chars += all.random(random)
+        }
+
+        return chars.shuffled(random).joinToString("")
+    }
+
+    private fun String.random(random: SecureRandom): Char =
+        this[random.nextInt(length)]
 
     fun convertToUserDto(user: UserEntity): UserDto {
         val activeBan = banService.isUserBanned(user)
