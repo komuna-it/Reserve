@@ -15,6 +15,6 @@ class EmailController(
     fun sendEmail() {
         val map = mutableMapOf<String, Any>()
         val user = userService.findById(2)
-        service.prepareAndSendEmail(EmailTemplateType.USER_RESERVATION_CREATED, user, map)
+        service.sendEmailToUser(EmailTemplateType.USER_RESERVATION_CREATED, user, map)
     }
 }

@@ -20,6 +20,7 @@ import site.komuna.reserve.user.ban.model.UnBanRequest
 import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
 import site.komuna.reserve.user.model.UserDto
 import org.springframework.data.domain.Pageable
+import site.komuna.reserve.user.model.UpdatePasswordRequest
 
 @RestController
 @RequestMapping("/users")
@@ -46,6 +47,15 @@ class UserController(
         val userEntity = service.assigneeUserRole(id, role, authentication.name)
         val userDto = service.convertToUserDto(userEntity)
 
+        return ResponseEntity.ok(userDto)
+    }
+
+    @PutMapping("/updatePassword")
+    fun updatePassword(@RequestBody request: UpdatePasswordRequest, authentication: Authentication): ResponseEntity<UserDto> {
+        val userId = authentication.name.toLong()
+
+        val userEntity = service.updatePassword(userId, request.currentPassword, request.newPassword)
+        val userDto = service.convertToUserDto(userEntity)
         return ResponseEntity.ok(userDto)
     }
 

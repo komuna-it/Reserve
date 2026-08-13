@@ -339,6 +339,15 @@ class ReservationService(
         request.organization = request.organizationId?.let { organizationService.getOrganization(it) }
     }
 
+    fun setPaid(reservationId: Long, paid: Boolean, changedBy: Long): ReservationEntity {
+        val reservation = findById(reservationId)
+        return setPaid(reservation, paid, changedBy)
+    }
+
+    fun setPaid(reservation: ReservationEntity, paid: Boolean, changedBy: Long): ReservationEntity {
+        reservation.paid = paid
+        return repository.save(reservation)
+    }
     // VALIDATION
     fun validate(request: CreateReservationRequest, currentUser: UserEntity) {
         val validator = CreateReservationValidation(organizationService, repository, organizationMemberService)

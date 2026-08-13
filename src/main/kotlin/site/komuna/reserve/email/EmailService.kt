@@ -13,10 +13,10 @@ import org.springframework.http.HttpStatus
 import org.springframework.mail.javamail.JavaMailSenderImpl
 import org.springframework.scheduling.annotation.Async
 import site.komuna.reserve.common.exception.ReserveException
+import site.komuna.reserve.email.emailTemplate.EmailTemplateService
+import site.komuna.reserve.email.model.EmailTemplate
 import site.komuna.reserve.email.model.EmailTemplateEntity
 import site.komuna.reserve.email.model.EmailTemplateType
-import site.komuna.reserve.organization.model.OrganizationEntity
-import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.settings.SettingsService
 import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_HOST
@@ -25,7 +25,6 @@ import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_PORT
 import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_USERNAME
 import site.komuna.reserve.settings.model.SettingsKey.MAIL_SMTP_AUTH
 import site.komuna.reserve.settings.model.SettingsKey.MAIL_SMTP_STARTTLS_ENABLE
-import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.io.StringReader
 import java.io.StringWriter
@@ -33,10 +32,8 @@ import java.io.StringWriter
 @Service
 class EmailService(
     private val freemarkerConfig: Configuration,
-    private val organizationMemberService: OrganizationMemberService,
-    private val userService: UserService,
-    private val emailTemplateRepository: EmailTemplateRepository,
     private val settings: SettingsService,
+    private val emailTemplateService: EmailTemplateService
 ) {
     @Value("\${spring.profiles.active:beta}")
     private lateinit var activeProfile: String
@@ -48,51 +45,42 @@ class EmailService(
     /**
      * Get an email template, render it, and send it
      */
-    fun prepareAndSendEmail(type: EmailTemplateType, user: UserEntity, model: MutableMap<String, Any>){
+    @Async
+    fun sendEmailToUser(type: EmailTemplateType, user: UserEntity, model: MutableMap<String, Any>){
         logger.info { "Sending email ${type.name} to user: ${user.email}" }
 
-        val language = user.preferredLanguage ?: "en"
+        val language = user.preferredLanguage
 
         model["originalEmail"] = user.email
         model["emailTemplate"] = type.name
         model["emailLanguage"] = language
 
-        val template = getTemplate(type, language)
-        val body = render(template, model)
-
-        sendEmail(template.subject, body, user.email, model)
+        sendEmail(type, language, user.email, model)
     }
 
     /**
-     * Email all users in an organization
+     * Email list of users
      */
-    fun sendEmailToOrganization(type: EmailTemplateType, organization: OrganizationEntity, model: MutableMap<String, Any>){
-        logger.info { "Sending email ${type.name} to an organization: ${organization.name}" }
+    fun sendEmailToUsers(type: EmailTemplateType, users: List<UserEntity>, model: MutableMap<String, Any>){
+        logger.info { "Sending email ${type.name} to ${users.size} users" }
 
-        organizationMemberService.getAllOrganizationUsers(organization.id!!).forEach { member ->
-            prepareAndSendEmail(type, member, model)
-        }
-    }
-
-    /**
-     * Find all admins and email each of them
-     */
-    fun sendEmailToAdmins(type: EmailTemplateType, model: MutableMap<String, Any>) {
-        logger.info { "Sending email ${type.name} to admins" }
-
-        userService.getAllAdmins().forEach { admin ->
-            prepareAndSendEmail(type, admin, model)
+        users.forEach { user ->
+            sendEmailToUser(type, user, model)
         }
     }
 
     /**
      * Send an email using the JavaMailSender
      */
-    @Async
-    public fun sendEmail(subject: String, body: String, recipient: String, model: MutableMap<String, Any>) {
+    private fun sendEmail(type: EmailTemplateType, language: String, recipient: String, model: MutableMap<String, Any>) {
         val sentTo = if(activeProfile != "prod") settings.getStringValue(SettingsKey.MAIL_SERVER_BETA_ADDRESS) else recipient
 
         try {
+            val template = emailTemplateService.getTemplate(type, language)
+
+            val subject = template.subject
+            val body = render(template, model)
+
             val mailSender = getSender()
             val message: MimeMessage = mailSender.createMimeMessage()
             val helper = MimeMessageHelper(message, true, "UTF-8")
@@ -130,29 +118,12 @@ class EmailService(
     }
 
     /**
-     * Search for the template in the database
+     * Render the email body with provided data in a model
      */
-    private fun getTemplate(template: EmailTemplateType, language: String): EmailTemplateEntity {
-        var emailTemplate = emailTemplateRepository.findByTypeAndLanguage(template, language)
-
-        if (emailTemplate == null) {
-            emailTemplate = emailTemplateRepository.findByTypeAndLanguage(template, "en")
-        }
-
-        if (emailTemplate == null) {
-            throw ReserveException(HttpStatus.NOT_FOUND, "Email template not found")
-        }
-
-        return emailTemplate
-    }
-
-    /**
-     * Render the email body with provided data in model
-     */
-    private fun render(template: EmailTemplateEntity, model: Map<String, Any>): String {
-        val header = template.header?.fragment ?: ""
-        val body = template.body.fragment
-        val footer = template.footer?.fragment ?: ""
+    private fun render(template: EmailTemplate, model: Map<String, Any>): String {
+        val header = template.header
+        val body = template.body
+        val footer = template.footer
 
         val debugInfo = if (activeProfile != "prod") {
             """

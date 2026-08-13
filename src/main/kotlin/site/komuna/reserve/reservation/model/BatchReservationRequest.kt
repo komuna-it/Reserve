@@ -1,6 +1,6 @@
 package site.komuna.reserve.reservation.model
 
-class ReservationStatusRequest(
+class BatchReservationRequest(
     var reservationIds: List<Long>,
 ) {
 }

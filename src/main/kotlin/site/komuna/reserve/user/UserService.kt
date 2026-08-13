@@ -8,8 +8,11 @@ import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import site.komuna.reserve.auth.request.RegisterRequest
+import site.komuna.reserve.common.exception.InvalidCredentialsException
 import site.komuna.reserve.common.exception.ReserveException
 import site.komuna.reserve.common.exception.UserNotFoundException
+import site.komuna.reserve.email.EmailService
+import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
 import site.komuna.reserve.user.ban.BanService
@@ -28,6 +31,7 @@ class UserService(
     private val passwordEncoder: PasswordEncoder,
     private val banService: BanService,
     private val refreshTokenService: RefreshTokenService,
+    private val emailService: EmailService,
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -121,6 +125,29 @@ class UserService(
     fun setTrusted(user: UserEntity, trusted: Boolean): UserEntity {
         user.trusted = trusted
         return repository.save(user)
+    }
+
+    fun updatePassword(userId: Long, currentPassword: String, newPassword: String): UserEntity {
+        val user = findById(userId)
+
+        return updatePassword(user, currentPassword, newPassword)
+    }
+
+    fun updatePassword(user: UserEntity, currentPassword: String, newPassword: String): UserEntity {
+        if (!passwordEncoder.matches(currentPassword, user.password)) {
+            throw InvalidCredentialsException()
+        }
+
+        user.password = passwordEncoder.encode(newPassword)
+        user.passwordChanged = OffsetDateTime.now(ZoneOffset.UTC)
+        val response = repository.save(user)
+
+        val model = mutableMapOf<String, Any>()
+        model["nick"] = user.nick
+
+        emailService.sendEmailToUser(EmailTemplateType.CHANGED_PASSWORD, user, model)
+
+        return response
     }
 
     // get methods

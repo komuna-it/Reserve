@@ -17,7 +17,6 @@ import site.komuna.reserve.security.token.refresh.RefreshToken
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
 import site.komuna.reserve.user.UserService
-import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
 
 @Service
@@ -42,7 +41,7 @@ class AuthService (
         model["verificationToken"] = verificationToken.token
         model["nick"] = newUser.nick
 
-        emailService.prepareAndSendEmail(EmailTemplateType.ACTIVATION_EMAIL, newUser, model)
+        emailService.sendEmailToUser(EmailTemplateType.ACTIVATION_EMAIL, newUser, model)
     }
 
     fun login(email: String, password: String) : LoginResponse {

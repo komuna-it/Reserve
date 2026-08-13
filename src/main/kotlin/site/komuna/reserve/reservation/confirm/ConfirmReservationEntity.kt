@@ -32,8 +32,5 @@ class ConfirmReservationEntity(
 
     var approvedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
 ) {
-
-
-
-
+    
 }
