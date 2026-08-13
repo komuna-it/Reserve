@@ -49,4 +49,11 @@ class RoomService(
         pricingService.updatePrice(room, reservationType, price, changedBy)
     }
 
+    fun setRecordable(roomId: Long, value: Boolean): RoomEntity {
+        val room = getRoom(roomId)
+
+        room.isRecordable = value
+        return repository.save(room)
+    }
+
 }
