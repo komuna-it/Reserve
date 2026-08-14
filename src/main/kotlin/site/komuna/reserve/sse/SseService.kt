@@ -80,7 +80,6 @@ class SseService {
                             .data(data)
                     )
                 } catch (ex: Exception) {
-                    emitter.complete()
                     removeEmitter(userId, emitter)
                 }
             }
@@ -101,7 +100,6 @@ class SseService {
                         .data("")
                 )
             } catch (ex: Exception) {
-                emitter.complete()
                 anonymousEmitters.remove(emitter)
             }
         }
@@ -115,7 +113,6 @@ class SseService {
                             .data("")
                     )
                 } catch (ex: Exception) {
-                    emitter.complete()
                     removeEmitter(userId, emitter)
                 }
             }

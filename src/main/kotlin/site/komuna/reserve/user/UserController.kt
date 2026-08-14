@@ -21,6 +21,8 @@ import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
 import site.komuna.reserve.user.model.UserDto
 import org.springframework.data.domain.Pageable
 import org.springframework.web.bind.annotation.PostMapping
+import site.komuna.reserve.common.PageResponse
+import site.komuna.reserve.common.toPageResponse
 import site.komuna.reserve.user.model.ForgotPasswordRequest
 import site.komuna.reserve.user.model.UpdatePasswordRequest
 
@@ -37,8 +39,9 @@ class UserController(
     @GetMapping("/all")
     fun getUsers(
         @PageableDefault(size = 10, page = 0, sort = ["id"], direction = Sort.Direction.ASC) pageable: Pageable
-    ): ResponseEntity<org.springframework.data.domain.Page<UserDto>> {
-        return ResponseEntity.ok(service.getUsers(pageable))
+    ): ResponseEntity<PageResponse<UserDto>> {
+        val response = service.getUsers(pageable).toPageResponse()
+        return ResponseEntity.ok(response)
     }
 
 

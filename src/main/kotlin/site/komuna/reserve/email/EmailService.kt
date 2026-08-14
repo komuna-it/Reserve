@@ -9,13 +9,11 @@ import org.springframework.stereotype.Service
 import freemarker.template.Template
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.http.HttpStatus
 import org.springframework.mail.javamail.JavaMailSenderImpl
 import org.springframework.scheduling.annotation.Async
-import site.komuna.reserve.common.exception.ReserveException
 import site.komuna.reserve.email.emailTemplate.EmailTemplateService
+import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplate
-import site.komuna.reserve.email.model.EmailTemplateEntity
 import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.settings.SettingsService
 import site.komuna.reserve.settings.model.SettingsKey
@@ -25,7 +23,6 @@ import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_PORT
 import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_USERNAME
 import site.komuna.reserve.settings.model.SettingsKey.MAIL_SMTP_AUTH
 import site.komuna.reserve.settings.model.SettingsKey.MAIL_SMTP_STARTTLS_ENABLE
-import site.komuna.reserve.user.model.UserEntity
 import java.io.StringReader
 import java.io.StringWriter
 
@@ -46,46 +43,48 @@ class EmailService(
      * Get an email template, render it, and send it
      */
     @Async
-    fun sendEmailToUser(type: EmailTemplateType, user: UserEntity, model: MutableMap<String, Any>){
-        logger.info { "Sending email ${type.name} to user: ${user.email}" }
+    fun sendEmailToUser(type: EmailTemplateType, recipient: EmailRecipient, model: MutableMap<String, Any>){
+        logger.info { "Sending email ${type.name} to user: ${recipient.email}" }
 
-        val language = user.preferredLanguage
-
-        model["originalEmail"] = user.email
-        model["emailTemplate"] = type.name
-        model["emailLanguage"] = language
-
-        sendEmail(type, language, user.email, model)
+        sendEmail(type, recipient, model)
     }
 
     /**
      * Email list of users
      */
-    fun sendEmailToUsers(type: EmailTemplateType, users: List<UserEntity>, model: MutableMap<String, Any>){
-        logger.info { "Sending email ${type.name} to ${users.size} users" }
+    @Async
+    fun sendEmailToUsers(type: EmailTemplateType, recipients: List<EmailRecipient>, model: MutableMap<String, Any>){
+        logger.info { "Sending email ${type.name} to ${recipients.size} users" }
 
-        users.forEach { user ->
-            sendEmailToUser(type, user, model)
+        recipients.forEach { recipient ->
+            sendEmailToUser(type, recipient, model)
         }
     }
 
     /**
      * Send an email using the JavaMailSender
      */
-    private fun sendEmail(type: EmailTemplateType, language: String, recipient: String, model: MutableMap<String, Any>) {
-        val sentTo = if(activeProfile != "prod") settings.getStringValue(SettingsKey.MAIL_SERVER_BETA_ADDRESS) else recipient
+    private fun sendEmail(type: EmailTemplateType, recipient: EmailRecipient, model: MutableMap<String, Any>) {
+        val sentFrom = settings.getStringValue(MAIL_SERVER_USERNAME)
+        val sentTo = if(activeProfile != "prod") settings.getStringValue(SettingsKey.MAIL_SERVER_BETA_ADDRESS) else recipient.email
 
         try {
-            val template = emailTemplateService.getTemplate(type, language)
+            val language = recipient.language
 
+            val template = emailTemplateService.getTemplate(type, language)
             val subject = template.subject
+
+            model["originalEmail"] = recipient.email
+            model["emailTemplate"] = type.name
+            model["emailLanguage"] = language
+            model["nick"] = recipient.nick
             val body = render(template, model)
 
             val mailSender = getSender()
             val message: MimeMessage = mailSender.createMimeMessage()
             val helper = MimeMessageHelper(message, true, "UTF-8")
 
-            helper.setFrom(settings.getStringValue(MAIL_SERVER_USERNAME))
+            helper.setFrom(sentFrom)
             helper.setTo(sentTo)
             helper.setSubject(subject)
             helper.setText(body, true)

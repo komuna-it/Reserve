@@ -12,6 +12,7 @@ import site.komuna.reserve.common.exception.InvalidCredentialsException
 import site.komuna.reserve.common.exception.ReserveException
 import site.komuna.reserve.common.exception.UserNotFoundException
 import site.komuna.reserve.email.EmailService
+import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
@@ -24,6 +25,8 @@ import java.security.SecureRandom
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Service
 class UserService(
@@ -104,9 +107,20 @@ class UserService(
         val user = findById(id)
         val bannedBy = findById(by)
 
+        val expires = OffsetDateTime.now(ZoneOffset.UTC) + duration
+        val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy HH:mm", Locale.of("pl", "PL"))
+        val formattedExpires = expires.format(formatter)
+
         if (reason.isBlank()) throw ReserveException(HttpStatus.BAD_REQUEST, "Reason is required")
 
         refreshTokenService.revokeAllTokensForUser(user)
+
+        val recipient = EmailRecipient(user)
+        val model = mutableMapOf<String, Any>()
+        model["reason"] = reason
+        model["expires"] = formattedExpires
+
+        emailService.sendEmailToUser(EmailTemplateType.USER_BANNED, recipient, model)
 
         return banService.banUser(user, bannedBy, reason, duration)
     }
@@ -145,8 +159,9 @@ class UserService(
 
         val model = mutableMapOf<String, Any>()
         model["nick"] = user.nick
+        val recipient = EmailRecipient(user)
 
-        emailService.sendEmailToUser(EmailTemplateType.CHANGED_PASSWORD, user, model)
+        emailService.sendEmailToUser(EmailTemplateType.CHANGED_PASSWORD, recipient, model)
 
         return response
     }
@@ -164,7 +179,8 @@ class UserService(
         model["nick"] = user.nick
         model["newPassword"] = newPassword
 
-        emailService.sendEmailToUser(EmailTemplateType.REMIND_PASSWORD, user, model)
+        val recipient = EmailRecipient(user)
+        emailService.sendEmailToUser(EmailTemplateType.REMIND_PASSWORD, recipient, model)
 
         repository.save(user)
     }

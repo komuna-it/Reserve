@@ -5,6 +5,8 @@ import site.komuna.reserve.organization.OrganizationService
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.ReservationRepository
 import site.komuna.reserve.reservation.model.CreateReservationRequest
+import site.komuna.reserve.settings.SettingsService
+import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
@@ -12,7 +14,8 @@ import java.time.OffsetDateTime
 class CreateReservationValidation(
     private val organizationService: OrganizationService,
     private val reservationRepository: ReservationRepository,
-    private val organizationMemberService: OrganizationMemberService
+    private val organizationMemberService: OrganizationMemberService,
+    private val settings: SettingsService
 ) {
 
     fun validate(request: CreateReservationRequest, currentUser: UserEntity): Boolean {
@@ -67,10 +70,10 @@ class CreateReservationValidation(
         val startAt = reservation.startAt
         val endAt = reservation.startAt.plusMinutes(reservation.duration.toMinutes())
 
-        val serviceStartHours = 10
-        val serviceEndHours = 22
+        val openingHours = settings.getIntValue(SettingsKey.RESERVATION_OPENING_HOUR)
+        val closingHours = settings.getIntValue(SettingsKey.RESERVATION_CLOSING_HOUR)
 
-        if (startAt.hour < serviceStartHours || endAt.hour > serviceEndHours) {
+        if (startAt.hour < openingHours || endAt.hour > closingHours) {
             throw CannotPerformThatActionException("Reservation is outside of allowed hours")
         }
 

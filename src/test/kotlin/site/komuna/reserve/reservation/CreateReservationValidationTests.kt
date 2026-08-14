@@ -12,6 +12,7 @@ import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.model.CreateReservationRequest
 import site.komuna.reserve.reservation.validation.CreateReservationValidation
+import site.komuna.reserve.settings.SettingsService
 import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
 import java.time.OffsetDateTime
@@ -22,8 +23,9 @@ class CreateReservationValidationTests {
     val reservationRepository = mockk<ReservationRepository>()
     val organizationService = mockk<OrganizationService>()
     val organizationMemberService = mockk<OrganizationMemberService>()
+    val settingsService = mockk<SettingsService>()
 
-    val validator = CreateReservationValidation(organizationService, reservationRepository, organizationMemberService)
+    val validator = CreateReservationValidation(organizationService, reservationRepository, organizationMemberService, settingsService)
 
     // Test method validateOrganizationMembership
 //    @Test
