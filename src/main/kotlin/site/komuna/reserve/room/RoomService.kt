@@ -31,7 +31,8 @@ class RoomService(
     fun getRoomsDto(): List<RoomDto> {
         return repository.findAll().map { room ->
             val pricing = pricingService.getPricing(room)
-            RoomDto(room, pricing) }
+            RoomDto(room, pricing)
+        }.sortedBy { it.name }
     }
 
     fun getRoomDto(id: Long): RoomDto {
