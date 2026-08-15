@@ -8,8 +8,12 @@ import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import site.komuna.reserve.auth.request.RegisterRequest
+import site.komuna.reserve.common.exception.InvalidCredentialsException
 import site.komuna.reserve.common.exception.ReserveException
 import site.komuna.reserve.common.exception.UserNotFoundException
+import site.komuna.reserve.email.EmailService
+import site.komuna.reserve.email.model.EmailRecipient
+import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
 import site.komuna.reserve.user.ban.BanService
@@ -17,9 +21,12 @@ import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanEntity
 import site.komuna.reserve.user.model.UserDto
 import site.komuna.reserve.user.model.UserEntity
+import java.security.SecureRandom
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Service
 class UserService(
@@ -28,6 +35,7 @@ class UserService(
     private val passwordEncoder: PasswordEncoder,
     private val banService: BanService,
     private val refreshTokenService: RefreshTokenService,
+    private val emailService: EmailService,
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -99,9 +107,20 @@ class UserService(
         val user = findById(id)
         val bannedBy = findById(by)
 
+        val expires = OffsetDateTime.now(ZoneOffset.UTC) + duration
+        val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy HH:mm", Locale.of("pl", "PL"))
+        val formattedExpires = expires.format(formatter)
+
         if (reason.isBlank()) throw ReserveException(HttpStatus.BAD_REQUEST, "Reason is required")
 
         refreshTokenService.revokeAllTokensForUser(user)
+
+        val recipient = EmailRecipient(user)
+        val model = mutableMapOf<String, Any>()
+        model["reason"] = reason
+        model["expires"] = formattedExpires
+
+        emailService.sendEmailToUser(EmailTemplateType.USER_BANNED, recipient, model)
 
         return banService.banUser(user, bannedBy, reason, duration)
     }
@@ -121,6 +140,49 @@ class UserService(
     fun setTrusted(user: UserEntity, trusted: Boolean): UserEntity {
         user.trusted = trusted
         return repository.save(user)
+    }
+
+    fun updatePassword(userId: Long, currentPassword: String, newPassword: String): UserEntity {
+        val user = findById(userId)
+
+        return updatePassword(user, currentPassword, newPassword)
+    }
+
+    fun updatePassword(user: UserEntity, currentPassword: String, newPassword: String): UserEntity {
+        if (!passwordEncoder.matches(currentPassword, user.password)) {
+            throw InvalidCredentialsException()
+        }
+
+        user.password = passwordEncoder.encode(newPassword)
+        user.passwordChanged = OffsetDateTime.now(ZoneOffset.UTC)
+        val response = repository.save(user)
+
+        val model = mutableMapOf<String, Any>()
+        model["nick"] = user.nick
+        val recipient = EmailRecipient(user)
+
+        emailService.sendEmailToUser(EmailTemplateType.CHANGED_PASSWORD, recipient, model)
+
+        return response
+    }
+
+    fun forgotPassword(email: String) {
+        val user = findByEmail(email)
+
+        val newPassword = generatePassword()
+        val encodedPassword = passwordEncoder.encode(newPassword)
+
+        user.password = encodedPassword
+        user.passwordChanged = OffsetDateTime.now(ZoneOffset.UTC)
+
+        val model = mutableMapOf<String, Any>()
+        model["nick"] = user.nick
+        model["newPassword"] = newPassword
+
+        val recipient = EmailRecipient(user)
+        emailService.sendEmailToUser(EmailTemplateType.REMIND_PASSWORD, recipient, model)
+
+        repository.save(user)
     }
 
     // get methods
@@ -175,6 +237,35 @@ class UserService(
         return repository.findByNickNot("SYSTEM", pageable)
             .map { convertToUserDto(it) }
     }
+
+    // Password generation
+    fun generatePassword(length: Int = 16): String {
+        val random = SecureRandom()
+
+        val upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        val lower = "abcdefghijklmnopqrstuvwxyz"
+        val digits = "0123456789"
+        val special = "!@#$%^&*"
+        val all = upper + lower + digits + special
+
+        require(length >= 4)
+
+        val chars = mutableListOf(
+            upper.random(random),
+            lower.random(random),
+            digits.random(random),
+            special.random(random)
+        )
+
+        repeat(length - 4) {
+            chars += all.random(random)
+        }
+
+        return chars.shuffled(random).joinToString("")
+    }
+
+    private fun String.random(random: SecureRandom): Char =
+        this[random.nextInt(length)]
 
     fun convertToUserDto(user: UserEntity): UserDto {
         val activeBan = banService.isUserBanned(user)

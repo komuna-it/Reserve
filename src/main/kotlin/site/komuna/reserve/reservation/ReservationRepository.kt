@@ -21,4 +21,6 @@ interface ReservationRepository:
           AND r.endAt > :startAt
     """)
     fun findOverlappingReservations(roomId: Long, startAt: OffsetDateTime, endAt: OffsetDateTime): List<ReservationEntity>
+
+    fun findByStartAtBetween(startAt: OffsetDateTime, endAt: OffsetDateTime): List<ReservationEntity>
 }

@@ -9,6 +9,18 @@ enum class SettingsKey(
         defaultValue = "24",
         validator = Regex("\\d+")
     ),
+    RESERVATION_OPENING_HOUR(
+        defaultValue = "8",
+        validator = Regex("\\d+")
+    ),
+    RESERVATION_CLOSING_HOUR(
+        defaultValue = "22",
+        validator = Regex("\\d+")
+    ),
+    RESERVATION_REMINDER_HOUR(
+        defaultValue = "12",
+        validator = Regex("\\d+")
+    ),
     MAIL_SERVER_HOST(
         defaultValue = "smtp.gmail.com",
         validator = Regex(".*"),

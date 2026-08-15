@@ -3,25 +3,25 @@ package site.komuna.reserve.reservation
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Predicate
+import org.hibernate.Hibernate
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import site.komuna.reserve.common.PageResponse
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.exception.ReservationNotFoundException
+import site.komuna.reserve.common.toPageResponse
 import site.komuna.reserve.email.EmailService
+import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.organization.OrganizationService
 import site.komuna.reserve.organization.model.OrganizationEntity
-import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
-import site.komuna.reserve.reservation.model.CreateReservationRequest
-import site.komuna.reserve.reservation.model.ReservationDto
-import site.komuna.reserve.reservation.model.ReservationEntity
-import site.komuna.reserve.reservation.model.ReservationStatus
-import site.komuna.reserve.reservation.model.SearchReservationsFilter
+import site.komuna.reserve.reservation.model.*
 import site.komuna.reserve.reservation.validation.CreateReservationValidation
 import site.komuna.reserve.room.RoomService
 import site.komuna.reserve.room.model.RoomEntity
@@ -36,7 +36,7 @@ import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import kotlin.String
+
 
 @Service
 class ReservationService(
@@ -62,6 +62,14 @@ class ReservationService(
         val spec = specification(filter)
 
         return repository.findAll(spec, pageable)
+    }
+
+    fun getTomorrowReservations(): List<ReservationEntity> {
+        val now = OffsetDateTime.now(ZoneOffset.UTC)
+        val tomorrow = now.plusDays(1)
+        val startAt = tomorrow.withHour(0).withMinute(0).withSecond(0).withNano(0)
+        val endAt = tomorrow.withHour(23).withMinute(59).withSecond(59).withNano(999999999)
+        return repository.findByStartAtBetween(startAt, endAt)
     }
 
     fun specification(filter: SearchReservationsFilter) =
@@ -162,6 +170,7 @@ class ReservationService(
             confirmReservationIfTrusted(response)
         }
 
+        sendCreatedReservationEmail(response)
         sseService.broadcast(ReserveEvents.RESERVATION_CREATED, ReservationDto(response))
 
         return response
@@ -339,9 +348,18 @@ class ReservationService(
         request.organization = request.organizationId?.let { organizationService.getOrganization(it) }
     }
 
+    fun setPaid(reservationId: Long, paid: Boolean, changedBy: Long): ReservationEntity {
+        val reservation = findById(reservationId)
+        return setPaid(reservation, paid, changedBy)
+    }
+
+    fun setPaid(reservation: ReservationEntity, paid: Boolean, changedBy: Long): ReservationEntity {
+        reservation.paid = paid
+        return repository.save(reservation)
+    }
     // VALIDATION
     fun validate(request: CreateReservationRequest, currentUser: UserEntity) {
-        val validator = CreateReservationValidation(organizationService, repository, organizationMemberService)
+        val validator = CreateReservationValidation(organizationService, repository, organizationMemberService, settings)
         validator.validate(request, currentUser)
     }
 
@@ -367,4 +385,55 @@ class ReservationService(
         return ReservationDto(reservation, price)
     }
 
+    // EMAILS
+     fun sendEmail(privateTemplate: EmailTemplateType, organizationTemplate: EmailTemplateType, reservation: ReservationEntity) {
+        val user = reservation.reservedBy
+        val startAt = reservation.startAt
+        val endAt = reservation.endAt
+        val duration = Duration.between(startAt, endAt)
+
+        val model = mutableMapOf<String, Any>()
+
+        model["roomName"] = reservation.room.name
+        model["duration"] = duration.toHoursPart()
+        model["startAt"] = startAt.toLocalTime()
+        model["endAt"] = endAt.toLocalTime()
+
+        // Handle private reservation
+        if(reservation.organization == null) {
+            val recipient = EmailRecipient(user)
+
+            emailService.sendEmailToUser(privateTemplate, recipient, model)
+        }
+        // Handle organization reservation
+        else {
+            val recipients = mutableListOf<EmailRecipient>()
+
+            val organization = reservation.organization!!
+            val members = organizationMemberService.getAllOrganizationUsers(organization.id!!)
+
+            members.forEach {
+                recipients.add(EmailRecipient(it))
+            }
+
+            model["organizationName"] = organization.name
+
+            emailService.sendEmailToUsers(organizationTemplate, recipients, model)
+        }
+    }
+
+    private fun sendCreatedReservationEmail(reservation: ReservationEntity) {
+        sendEmail(EmailTemplateType.RESERVATION_CREATED_PRIVATE, EmailTemplateType.RESERVATION_CREATED_ORGANIZATION, reservation)
+    }
+
+    fun sendReminders() {
+        val reservations = getTomorrowReservations()
+
+        reservations.forEach { reservation ->
+            Hibernate.initialize(reservation)
+            Hibernate.initialize(reservation.room)
+
+            sendEmail(EmailTemplateType.RESERVATION_REMINDER, EmailTemplateType.RESERVATION_REMINDER, reservation)
+        }
+    }
 }

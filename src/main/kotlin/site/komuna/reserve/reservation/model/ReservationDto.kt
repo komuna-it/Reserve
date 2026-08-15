@@ -15,6 +15,7 @@ class ReservationDto(
     val status: ReservationStatus,
     val organization: Long? = null,
     val price: Int? = null,
+    val paid: Boolean = false,
 ) {
 
     constructor(reservation: ReservationEntity) : this(
@@ -27,7 +28,8 @@ class ReservationDto(
         reservedBy = reservation.reservedBy.id!!,
         status = reservation.status,
         organization = reservation.organization?.id,
-        reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick)
+        reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick,
+        paid = reservation.paid)
 
     constructor(reservation: ReservationEntity, price: Int) : this(
         id = reservation.id!!,
@@ -40,6 +42,7 @@ class ReservationDto(
         status = reservation.status,
         organization = reservation.organization?.id,
         reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick,
+        paid = reservation.paid,
         price = price
     )
 }

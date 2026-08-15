@@ -47,6 +47,8 @@ class ReservationEntity(
     var startAt: OffsetDateTime,
     var endAt: OffsetDateTime,
 
+    var paid: Boolean = false,
+
     @Formula("COALESCE((SELECT o.name FROM organizations o WHERE o.id = organization_id), (SELECT u.nick FROM users u WHERE u.id = reserved_by_user_id))")
     var r: String? = null // string wyciągający nazwę zespołu lub nazwę usera, jeśli to prywatna rezerwacja (dla sortowania z fronta)
 ) {

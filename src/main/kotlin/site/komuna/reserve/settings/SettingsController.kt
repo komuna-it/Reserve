@@ -16,12 +16,14 @@ import site.komuna.reserve.settings.model.GetSettingsRequest
 import site.komuna.reserve.settings.model.SettingsDto
 import site.komuna.reserve.settings.model.SettingsEntity
 import site.komuna.reserve.settings.model.SettingsKey
+import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserDto
 
 @RestController
 @RequestMapping("/settings")
 class SettingsController(
-    private val service: SettingsService
+    private val service: SettingsService,
+    private val userService: UserService
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -49,7 +51,7 @@ class SettingsController(
 
     @GetMapping("")
     fun getSettingKey(@RequestBody request: GetSettingsRequest, authentication: Authentication): ResponseEntity<List<SettingsDto>> {
-        val requestedBy = authentication.name.toLong()
+        val requestedBy = userService.findById(authentication.name.toLong())
 
         val settings = newArrayList<SettingsDto>()
 

@@ -187,7 +187,16 @@
 					<target>25</target>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<version>11.7.2</version>
+				<configuration>
+					<url>jdbc:postgresql://127.0.0.1:5432/reserv</url>
+					<user>lukasz</user>
+					<password>postgres</password>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
-
 </project>

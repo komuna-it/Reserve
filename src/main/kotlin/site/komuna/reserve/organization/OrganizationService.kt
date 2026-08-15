@@ -9,8 +9,10 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import site.komuna.reserve.common.PageResponse
 import site.komuna.reserve.common.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.exception.OrganizationNotFoundException
+import site.komuna.reserve.common.toPageResponse
 import site.komuna.reserve.organization.model.CreateOrganizationRequest
 import site.komuna.reserve.organization.model.OrganizationDto
 import site.komuna.reserve.organization.model.OrganizationEntity

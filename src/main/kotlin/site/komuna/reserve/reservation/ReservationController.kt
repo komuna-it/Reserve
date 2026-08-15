@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
+import site.komuna.reserve.common.PageResponse
 import site.komuna.reserve.reservation.model.*
 import site.komuna.reserve.user.UserService
 import java.time.OffsetDateTime
@@ -78,7 +79,7 @@ class ReservationController(
 
     @PostMapping("/confirm")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun confirmReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
+    fun confirmReservation(@RequestBody request: BatchReservationRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val confirmedBy = authentication.name.toLong()
         val reservations = newArrayList<ReservationDto>()
 
@@ -93,7 +94,7 @@ class ReservationController(
 
     @PostMapping("/reject")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun rejectReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
+    fun rejectReservation(@RequestBody request: BatchReservationRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val confirmedBy = authentication.name.toLong()
         val reservations = newArrayList<ReservationDto>()
 
@@ -107,7 +108,7 @@ class ReservationController(
     }
 
     @PostMapping("/requestCancel")
-    fun requestCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
+    fun requestCancelReservation(@RequestBody request: BatchReservationRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
         val reservations = newArrayList<ReservationDto>()
 
@@ -122,7 +123,7 @@ class ReservationController(
 
     @PostMapping("/confirmCancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun confirmCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
+    fun confirmCancelReservation(@RequestBody request: BatchReservationRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
         val reservations = newArrayList<ReservationDto>()
 
@@ -137,7 +138,7 @@ class ReservationController(
 
     @PostMapping("/rejectCancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    fun rejectCancelReservation(@RequestBody request: ReservationStatusRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
+    fun rejectCancelReservation(@RequestBody request: BatchReservationRequest, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
         val cancelledBy = authentication.name.toLong()
         val reservations = newArrayList<ReservationDto>()
 
@@ -147,6 +148,21 @@ class ReservationController(
             reservations.add(service.getReservationDto(response))
         }
 
+        return ResponseEntity.ok(reservations)
+    }
+
+    @PatchMapping("/paid/{value}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun setPaid(@RequestBody request: BatchReservationRequest, @PathVariable value: Boolean, authentication: Authentication): ResponseEntity<List<ReservationDto>> {
+        val requestedBy = authentication.name.toLong()
+        val reservations = newArrayList<ReservationDto>()
+
+        request.reservationIds.forEach { reservationId ->
+            logger.info { "Received a request from user id ${authentication.name} to set paid status of reservation with id: $reservationId to $value" }
+            val result = service.setPaid(reservationId, value, requestedBy)
+            val dto = service.getReservationDto(result)
+            reservations.add(dto)
+        }
         return ResponseEntity.ok(reservations)
     }
 }

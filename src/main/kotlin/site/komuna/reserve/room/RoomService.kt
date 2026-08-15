@@ -31,7 +31,8 @@ class RoomService(
     fun getRoomsDto(): List<RoomDto> {
         return repository.findAll().map { room ->
             val pricing = pricingService.getPricing(room)
-            RoomDto(room, pricing) }
+            RoomDto(room, pricing)
+        }.sortedBy { it.name }
     }
 
     fun getRoomDto(id: Long): RoomDto {
@@ -47,6 +48,13 @@ class RoomService(
         val reservationType = ReservationType.from(reservationType)
 
         pricingService.updatePrice(room, reservationType, price, changedBy)
+    }
+
+    fun setRecordable(roomId: Long, value: Boolean): RoomEntity {
+        val room = getRoom(roomId)
+
+        room.isRecordable = value
+        return repository.save(room)
     }
 
 }

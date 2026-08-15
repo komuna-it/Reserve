@@ -12,12 +12,12 @@ import site.komuna.reserve.settings.model.SettingsEntity
 import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.UserService
+import site.komuna.reserve.user.model.UserEntity
 import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class SettingsService(
     private val repository: SettingsRepository,
-    private val userService: UserService,
     private val cache: ConcurrentHashMap<SettingsKey, String> = ConcurrentHashMap<SettingsKey, String>()
 ) {
 
@@ -47,14 +47,12 @@ class SettingsService(
         }
     }
 
-    fun getSetting(key: String, requestedBy: Long): SettingsEntity {
-
-        val user = userService.findById(requestedBy)
+    fun getSetting(key: String, requestedBy: UserEntity): SettingsEntity {
 
         val key = SettingsKey.valueOf(key)
 
-        if(key.isSensitive && (user.role != Role.ADMIN && user.role != Role.MANAGER)) {
-            logger.warn { "User with id ${user.id} tried to get sensitive settings" }
+        if(key.isSensitive && (requestedBy.role != Role.ADMIN && requestedBy.role != Role.MANAGER)) {
+            logger.warn { "User with id ${requestedBy.id} tried to get sensitive settings" }
 
             throw ReserveException(HttpStatus.FORBIDDEN, "You are not allowed to get sensitive settings")
         }
@@ -62,12 +60,10 @@ class SettingsService(
         return repository.findById(key).get()
     }
 
-    fun getSettings(requestedBy: Long): List<SettingsEntity> {
-        val user = userService.findById(requestedBy)
-
+    fun getSettings(requestedBy: UserEntity): List<SettingsEntity> {
         val response = repository.findAll()
 
-        return if (user.role == Role.ADMIN || user.role == Role.MANAGER) {
+        return if (requestedBy.role == Role.ADMIN || requestedBy.role == Role.MANAGER) {
             response
         } else {
             response.filter { !it.isSensitive }

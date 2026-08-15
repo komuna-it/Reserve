@@ -2,6 +2,7 @@ package site.komuna.reserve.email
 
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
+import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.user.UserService
 
@@ -15,6 +16,7 @@ class EmailController(
     fun sendEmail() {
         val map = mutableMapOf<String, Any>()
         val user = userService.findById(2)
-        service.prepareAndSendEmail(EmailTemplateType.USER_RESERVATION_CREATED, user, map)
+        val recipient = EmailRecipient(user)
+        service.sendEmailToUser(EmailTemplateType.USER_RESERVATION_CREATED, recipient, map)
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -54,6 +55,17 @@ class RoomController(
         logger.info { "Received a request from user id ${authentication.name} to set up a new price for room with id: $roomId" }
 
         service.setNewPrice(roomId, reservationType, price, changedBy)
+        return service.getRoomDto(roomId)
+    }
+
+    @PatchMapping("/{roomId}/setRecordable/{value}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun setRecordable(@PathVariable roomId: Long, @PathVariable value: Boolean, authentication: Authentication): RoomDto {
+        val changedBy = authentication.name.toLong()
+
+        logger.info { "Received a request from user id ${authentication.name} to set recordable status for room with id: $roomId" }
+
+        service.setRecordable(roomId, value)
         return service.getRoomDto(roomId)
     }
 }
