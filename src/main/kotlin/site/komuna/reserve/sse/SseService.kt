@@ -1,15 +1,23 @@
 package site.komuna.reserve.sse
 
+import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @Service
 class SseService {
 
+    private val logger = LoggerFactory.getLogger(SseService::class.java)
+
     private val userEmitters = ConcurrentHashMap<Long, MutableSet<SseEmitter>>()
     private val anonymousEmitters = ConcurrentHashMap.newKeySet<SseEmitter>()
+
+    private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
 
     fun subscribe(userId: Long?): SseEmitter {
         val emitter = SseEmitter(0L)
@@ -23,14 +31,17 @@ class SseService {
         }
 
         emitter.onCompletion {
+            logger.debug("Emitter onCompletion for userId=$userId")
             removeEmitter(userId, emitter)
         }
 
         emitter.onTimeout {
+            logger.debug("Emitter onTimeout for userId=$userId")
             removeEmitter(userId, emitter)
         }
 
-        emitter.onError {
+        emitter.onError { ex ->
+            logger.debug("Emitter onError for userId=$userId: ${ex?.message}")
             removeEmitter(userId, emitter)
         }
 
@@ -38,50 +49,51 @@ class SseService {
     }
 
     private fun removeEmitter(userId: Long?, emitter: SseEmitter) {
+        try {
+            emitter.complete()
+        } catch (ignored: Exception) {
+            // ignore
+        }
+
         if (userId == null) {
             anonymousEmitters.remove(emitter)
             return
         }
 
-        userEmitters[userId]?.let {
-            it.remove(emitter)
-
-            if (it.isEmpty()) {
+        userEmitters[userId]?.let { set ->
+            set.remove(emitter)
+            if (set.isEmpty()) {
                 userEmitters.remove(userId)
             }
         }
     }
 
+    private fun sendSafely(userId: Long?, emitter: SseEmitter, eventName: String, data: Any) {
+        try {
+            emitter.send(SseEmitter.event().name(eventName).data(data))
+        } catch (ex: IOException) {
+            logger.info("Removing emitter for userId=$userId due to IOException: ${ex.message}")
+            removeEmitter(userId, emitter)
+        } catch (ex: Exception) {
+            logger.warn("Unexpected error sending SSE to userId=$userId: ${ex.message}", ex)
+            removeEmitter(userId, emitter)
+        }
+    }
+
     fun sendToUser(userId: Long, reserveEvent: ReserveEvents, data: Any) {
-        userEmitters[userId]?.forEach {
-            it.send(
-                SseEmitter.event()
-                    .name(reserveEvent.name)
-                    .data(data)
-            )
+        userEmitters[userId]?.toList()?.forEach { emitter ->
+            executor.submit { sendSafely(userId, emitter, reserveEvent.name, data) }
         }
     }
 
     fun broadcast(reserveEvent: ReserveEvents, data: Any) {
-        anonymousEmitters.forEach {
-            it.send(
-                SseEmitter.event()
-                    .name(reserveEvent.name)
-                    .data(data)
-            )
+        anonymousEmitters.toList().forEach { emitter ->
+            executor.submit { sendSafely(null, emitter, reserveEvent.name, data) }
         }
 
         userEmitters.forEach { (userId, emitters) ->
             emitters.toList().forEach { emitter ->
-                try {
-                    emitter.send(
-                        SseEmitter.event()
-                            .name(reserveEvent.name)
-                            .data(data)
-                    )
-                } catch (ex: Exception) {
-                    removeEmitter(userId, emitter)
-                }
+                executor.submit { sendSafely(userId, emitter, reserveEvent.name, data) }
             }
         }
     }
@@ -93,29 +105,25 @@ class SseService {
 
     fun broadcastHeartbeat() {
         anonymousEmitters.toList().forEach { emitter ->
-            try {
-                emitter.send(
-                    SseEmitter.event()
-                        .name("heartbeat")
-                        .data("")
-                )
-            } catch (ex: Exception) {
-                anonymousEmitters.remove(emitter)
-            }
+            executor.submit { sendSafely(null, emitter, "heartbeat", "ping") }
         }
 
         userEmitters.forEach { (userId, emitters) ->
             emitters.toList().forEach { emitter ->
-                try {
-                    emitter.send(
-                        SseEmitter.event()
-                            .name("heartbeat")
-                            .data("")
-                    )
-                } catch (ex: Exception) {
-                    removeEmitter(userId, emitter)
-                }
+                executor.submit { sendSafely(userId, emitter, "heartbeat", "ping") }
             }
+        }
+    }
+
+    fun shutdown() {
+        executor.shutdown()
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow()
+            }
+        } catch (ex: InterruptedException) {
+            executor.shutdownNow()
+            Thread.currentThread().interrupt()
         }
     }
 }
