@@ -9,9 +9,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
-import site.komuna.reserve.common.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
 import site.komuna.reserve.organization.OrganizationService
-import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
 import site.komuna.reserve.reservation.model.ReservationEntity

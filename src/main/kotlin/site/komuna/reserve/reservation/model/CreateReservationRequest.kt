@@ -1,6 +1,5 @@
 package site.komuna.reserve.reservation.model
 
-import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.room.model.RoomEntity
@@ -19,7 +18,7 @@ class CreateReservationRequest(
     @field:NotNull(message = "Duration is required")
     var duration: Duration,
 
-    var type: ReservationType = ReservationType.REHEARSAL,
+    var type: String = ReservationType.REHEARSAL.name,
     var organizationId: Long? = null,
 
     // Request organized by system

@@ -1,16 +1,6 @@
 package site.komuna.reserve.organization.organizationMember.model
 
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.Table
-import jakarta.persistence.UniqueConstraint
+import jakarta.persistence.*
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberRole
 import site.komuna.reserve.user.model.UserEntity

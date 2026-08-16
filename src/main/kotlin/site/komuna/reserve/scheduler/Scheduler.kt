@@ -43,6 +43,6 @@ class Scheduler(
         }
 
         logger.info { "Sending tomorrow's reservation reminders to users" }
-        reservationService.sendReminders()
+        reservationService.emitReservationReminders()
     }
 }

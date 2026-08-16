@@ -5,19 +5,11 @@ import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import site.komuna.reserve.settings.model.ChangeSettingsRequest
 import site.komuna.reserve.settings.model.GetSettingsRequest
 import site.komuna.reserve.settings.model.SettingsDto
-import site.komuna.reserve.settings.model.SettingsEntity
-import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.user.UserService
-import site.komuna.reserve.user.model.UserDto
 
 @RestController
 @RequestMapping("/settings")

@@ -1,15 +1,12 @@
 package site.komuna.reserve.security.token.verification
 
-import jakarta.annotation.PostConstruct
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.exception.TokenExpiredException
-import site.komuna.reserve.common.exception.VerificationTokenNotFoundException
+import site.komuna.reserve.common.httpError.exception.EmailAlreadyVerifiedException
 import site.komuna.reserve.security.token.TokenProperties
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
-import java.time.OffsetTime
 import java.time.ZoneOffset
-import java.util.UUID
+import java.util.*
 
 @Service
 class VerificationTokenService (
@@ -61,11 +58,12 @@ class VerificationTokenService (
     }
 
     fun confirmEmail(token: String) {
-        val tokenEntity = repository.findByToken(token) ?: throw VerificationTokenNotFoundException()
+        val tokenEntity = repository.findByToken(token) ?: throw EmailAlreadyVerifiedException()
 
-        val now = OffsetDateTime.now(ZoneOffset.UTC)
+        // Removed token expiration check. Not important from a business perspective at this point
 
-        if(now.isAfter(tokenEntity.expires)) throw TokenExpiredException()
+        // val now = OffsetDateTime.now(ZoneOffset.UTC)
+        // if(now.isAfter(tokenEntity.expires)) throw EmailVerificationTokenExpiredException()
 
         removeToken(tokenEntity)
     }

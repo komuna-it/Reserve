@@ -3,7 +3,7 @@ package site.komuna.reserve.security.token.access
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.exception.InvalidRefreshTokenException
+import site.komuna.reserve.common.httpError.exception.InvalidRefreshTokenException
 import site.komuna.reserve.security.token.TokenProperties
 import site.komuna.reserve.security.token.refresh.RefreshTokenEntity
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
@@ -11,7 +11,7 @@ import site.komuna.reserve.user.model.UserEntity
 import java.nio.charset.StandardCharsets
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.util.Date
+import java.util.*
 import javax.crypto.SecretKey
 
 @Service

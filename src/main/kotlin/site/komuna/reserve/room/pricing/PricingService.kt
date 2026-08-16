@@ -1,6 +1,5 @@
 package site.komuna.reserve.room.pricing
 
-import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Service
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.reservation.model.ReservationType

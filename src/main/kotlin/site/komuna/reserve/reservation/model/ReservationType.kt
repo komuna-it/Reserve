@@ -1,6 +1,6 @@
 package site.komuna.reserve.reservation.model
 
-import site.komuna.reserve.common.exception.ReservationTypeNotFoundException
+import site.komuna.reserve.common.httpError.exception.ReservationTypeNotFoundException
 
 enum class ReservationType {
     REHEARSAL,

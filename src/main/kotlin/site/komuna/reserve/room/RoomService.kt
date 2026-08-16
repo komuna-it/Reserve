@@ -1,7 +1,7 @@
 package site.komuna.reserve.room
 
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.exception.RoomNotFoundException
+import site.komuna.reserve.common.httpError.exception.RoomNotFoundException
 import site.komuna.reserve.reservation.model.ReservationType
 import site.komuna.reserve.room.model.RoomDto
 import site.komuna.reserve.room.model.RoomEntity

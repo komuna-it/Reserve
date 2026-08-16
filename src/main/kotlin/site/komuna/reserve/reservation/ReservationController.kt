@@ -10,7 +10,6 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
-import site.komuna.reserve.common.PageResponse
 import site.komuna.reserve.reservation.model.*
 import site.komuna.reserve.user.UserService
 import java.time.OffsetDateTime

@@ -6,8 +6,8 @@ import io.mockk.verify
 import org.junit.jupiter.api.Assertions.*
 
 import org.junit.jupiter.api.Test
-import site.komuna.reserve.common.exception.CannotPerformThatActionException
-import site.komuna.reserve.common.exception.OrganizationMemberNotFoundException
+import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.httpError.exception.OrganizationMemberNotFoundException
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberRole
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService

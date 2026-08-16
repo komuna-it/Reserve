@@ -3,15 +3,12 @@ package site.komuna.reserve.settings
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.annotation.PostConstruct
 import jakarta.transaction.Transactional
-import org.springframework.boot.context.event.ApplicationReadyEvent
-import org.springframework.context.event.EventListener
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.exception.ReserveException
+import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.httpError.exception.InvalidSettingsValueException
 import site.komuna.reserve.settings.model.SettingsEntity
 import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.user.Role
-import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.util.concurrent.ConcurrentHashMap
 
@@ -43,7 +40,7 @@ class SettingsService(
 
     fun validateSetting(key: SettingsKey, value: String) {
         if (!key.validator.matches(value)) {
-            throw ReserveException(HttpStatus.BAD_REQUEST, "Invalid value for setting ${key.name}")
+            throw InvalidSettingsValueException(key.name, value)
         }
     }
 
@@ -54,7 +51,7 @@ class SettingsService(
         if(key.isSensitive && (requestedBy.role != Role.ADMIN && requestedBy.role != Role.MANAGER)) {
             logger.warn { "User with id ${requestedBy.id} tried to get sensitive settings" }
 
-            throw ReserveException(HttpStatus.FORBIDDEN, "You are not allowed to get sensitive settings")
+            throw CannotPerformThatActionException("")
         }
 
         return repository.findById(key).get()

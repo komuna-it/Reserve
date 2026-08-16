@@ -2,29 +2,22 @@ package site.komuna.reserve.user
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
+import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
+import site.komuna.reserve.common.PageResponse
+import site.komuna.reserve.common.toPageResponse
 import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanRequest
 import site.komuna.reserve.user.ban.model.UnBanRequest
-import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
-import site.komuna.reserve.user.model.UserDto
-import org.springframework.data.domain.Pageable
-import org.springframework.web.bind.annotation.PostMapping
-import site.komuna.reserve.common.PageResponse
-import site.komuna.reserve.common.toPageResponse
 import site.komuna.reserve.user.model.ForgotPasswordRequest
 import site.komuna.reserve.user.model.UpdatePasswordRequest
+import site.komuna.reserve.user.model.UpdateTrustedUserStatusRequest
+import site.komuna.reserve.user.model.UserDto
 
 @RestController
 @RequestMapping("/users")
@@ -34,7 +27,6 @@ class UserController(
     companion object {
         private val logger = KotlinLogging.logger {}
     }
-
 
     @GetMapping("/all")
     fun getUsers(
@@ -94,12 +86,13 @@ class UserController(
     @PutMapping("/unban")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun unbanUser(@RequestBody request: UnBanRequest, authentication: Authentication): ResponseEntity<List<UserDto>> {
-
         val unbannedUsers = newArrayList<UserDto>()
+        val unbannedBy = authentication.name.toLong()
 
         request.userIds.forEach { userId ->
-            logger.info { "Received a request from user id ${authentication.name} to unban user with id: $userId" }
-            val userEntity = service.unbanUser(userId)
+            logger.info { "Received a request from user id ${unbannedBy} to unban user with id: $userId" }
+
+            val userEntity = service.unbanUser(userId, unbannedBy)
             val userDto = service.convertToUserDto(userEntity)
             unbannedUsers.add(userDto)
         }
@@ -142,5 +135,4 @@ class UserController(
             """)
 
     }
-
 }

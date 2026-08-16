@@ -1,7 +1,7 @@
 package site.komuna.reserve.reservation.cancel
 
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.exception.CancelReservationDetailsNotConfirmedException
+import site.komuna.reserve.common.httpError.exception.CancelReservationDetailsNotConfirmedException
 import site.komuna.reserve.reservation.model.ReservationEntity
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime

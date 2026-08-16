@@ -1,28 +1,23 @@
 package site.komuna.reserve.email
 
 import freemarker.template.Configuration
-import jakarta.mail.internet.MimeMessage
-import org.springframework.core.io.ClassPathResource
-import org.springframework.mail.javamail.JavaMailSender
-import org.springframework.mail.javamail.MimeMessageHelper
-import org.springframework.stereotype.Service
 import freemarker.template.Template
 import io.github.oshai.kotlinlogging.KotlinLogging
+import jakarta.mail.internet.MimeMessage
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.io.ClassPathResource
+import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.JavaMailSenderImpl
+import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.scheduling.annotation.Async
+import org.springframework.stereotype.Service
 import site.komuna.reserve.email.emailTemplate.EmailTemplateService
 import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplate
 import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.settings.SettingsService
 import site.komuna.reserve.settings.model.SettingsKey
-import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_HOST
-import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_PASSWORD
-import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_PORT
-import site.komuna.reserve.settings.model.SettingsKey.MAIL_SERVER_USERNAME
-import site.komuna.reserve.settings.model.SettingsKey.MAIL_SMTP_AUTH
-import site.komuna.reserve.settings.model.SettingsKey.MAIL_SMTP_STARTTLS_ENABLE
+import site.komuna.reserve.settings.model.SettingsKey.*
 import java.io.StringReader
 import java.io.StringWriter
 

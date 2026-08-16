@@ -8,11 +8,8 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
-import site.komuna.reserve.common.PageResponse
-import site.komuna.reserve.common.exception.CannotPerformThatActionException
-import site.komuna.reserve.common.exception.ReservationNotFoundException
-import site.komuna.reserve.common.toPageResponse
+import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.httpError.exception.ReservationNotFoundException
 import site.komuna.reserve.email.EmailService
 import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplateType
@@ -162,40 +159,46 @@ class ReservationService(
         prepareCreateRequest(request, currentUser)
         validate(request, currentUser)
 
-        val response = repository.save(ReservationEntity(request))
+        var response = repository.save(ReservationEntity(request))
 
-        if (currentUser.role == Role.ADMIN) {
-            confirmReservationBySystem(response)
-        } else {
-            confirmReservationIfTrusted(response)
+        if (currentUser.role == Role.ADMIN || currentUser.role == Role.MANAGER) {
+            response = confirmReservationBySystem(response)
         }
+        response = confirmReservationIfTrusted(response)
 
-        sendCreatedReservationEmail(response)
-        sseService.broadcast(ReserveEvents.RESERVATION_CREATED, ReservationDto(response))
+        if (response.status == ReservationStatus.CONFIRMED) {
+            emitReservationApproved(response)
+        }
+        else {
+            emitCreatedReservation(response)
+        }
 
         return response
     }
     /**
      * Reservation could be automatically confirmed if a user or organization is trusted
      */
-    fun confirmReservationIfTrusted(reservation: ReservationEntity) {
+    fun confirmReservationIfTrusted(reservation: ReservationEntity): ReservationEntity {
         val user = reservation.reservedBy
         val organization = reservation.organization
 
         if (user.trusted) {
             logger.trace { "Automatically confirming reservation ${reservation.id} because user ${user.id} is trusted" }
-            confirmReservationBySystem(reservation)
+            return confirmReservationBySystem(reservation)
         }
 
         if (organization != null && organization.trusted) {
             logger.trace { "Automatically confirming reservation ${reservation.id} because organization ${organization.id} is trusted" }
-            confirmReservationBySystem(reservation)
+            return confirmReservationBySystem(reservation)
         }
+
+        return reservation
     }
 
     fun confirmReservationBySystem(reservation: ReservationEntity): ReservationEntity {
         val systemUser = userService.getSystemUser()
-        return confirmReservation(reservation, systemUser)
+        val response = confirmReservation(reservation, systemUser)
+        return response
     }
 
     fun confirmReservation(reservation: ReservationEntity, approvedBy: UserEntity): ReservationEntity{
@@ -213,18 +216,23 @@ class ReservationService(
         val user = userService.findById(approvedBy)
         val reservation = findById(reservationId)
 
-        return confirmReservation(reservation, user)
+        val response = confirmReservation(reservation, user)
+
+        emitReservationApproved(response)
+        return response
     }
 
     fun rejectReservationRequest(reservation: ReservationEntity, rejectedBy: UserEntity): ReservationEntity {
         if (reservation.status == ReservationStatus.REJECTED || reservation.status == ReservationStatus.CANCELLED) {
-            throw CannotPerformThatActionException("Reservation is already in ${reservation.status} status")
+            throw CannotPerformThatActionException("Current status of reservation: ${reservation.status} can not request rejection")
         }
 
         confirmReservationService.saveRejectReservationDetails(reservation, rejectedBy)
 
         val response = changeStatus(reservation, ReservationStatus.REJECTED)
-        sseService.broadcast(ReserveEvents.RESERVATION_REJECTED, ReservationDto(response))
+
+        // TODO:
+        emitReservationRejected(response)
 
         return response
     }
@@ -247,6 +255,7 @@ class ReservationService(
     fun requestCancelReservation(reservation: ReservationEntity, cancelledByUser: UserEntity): ReservationEntity {
         val startAt = reservation.startAt
         val canceledAt = OffsetDateTime.now(ZoneOffset.UTC)
+        val canceledBy = cancelledByUser.nick
 
         if(reservation.status == ReservationStatus.REQUESTED_CANCELLATION) {
             throw CannotPerformThatActionException("Reservation is already in REQUESTED_CANCELLATION status")
@@ -267,13 +276,15 @@ class ReservationService(
 
         if(time.toHours() > allowedHour) {
             val response = cancelReservationBySystem(reservation, cancelledByUser, canceledAt)
-            sseService.broadcast(ReserveEvents.RESERVATION_CANCELED, ReservationDto(response))
+
+            emitReservationCancelled(response, canceledBy)
             return response
         }
 
         // Save cancellation request
         val response = saveCancellationRequest(reservation, cancelledByUser, canceledAt)
-        sseService.broadcast(ReserveEvents.RESERVATION_CANCEL_REQUESTED, ReservationDto(response))
+
+        emitReservationCancelRequested(response, canceledBy)
         return response
     }
 
@@ -285,7 +296,10 @@ class ReservationService(
             systemUser,
             canceledAt)
 
-        return changeStatus(reservation, ReservationStatus.CANCELLED)
+        val response = changeStatus(reservation, ReservationStatus.CANCELLED)
+        sendEmailUsers(EmailTemplateType.RESERVATION_CANCELED_PRIVATE, EmailTemplateType.RESERVATION_CANCELED_ORGANIZATION, response)
+
+        return response
     }
 
     fun saveCancellationRequest(reservation: ReservationEntity, cancelledBy: UserEntity, canceledAt: OffsetDateTime): ReservationEntity {
@@ -311,7 +325,10 @@ class ReservationService(
 
         cancelReservationService.updateCancelReservationDetails(reservation, approvedBy)
         val response = changeStatus(reservation, ReservationStatus.CANCELLED)
-        sseService.broadcast(ReserveEvents.RESERVATION_CANCELED, ReservationDto(response))
+
+        val requestedBy = cancelReservationService.findByReservationId(reservation.id!!).requestedBy.nick
+
+        emitReservationCancelled(response, requestedBy)
         return response
     }
 
@@ -329,7 +346,8 @@ class ReservationService(
 
         cancelReservationService.updateCancelReservationDetails(reservation, approvedBy)
         val response = changeStatus(reservation, ReservationStatus.REJECTED_CANCELLATION)
-        sseService.broadcast(ReserveEvents.RESERVATION_CANCEL_REJECTED, ReservationDto(response))
+
+        emitReservationRejected(response)
         return response
     }
 
@@ -357,7 +375,7 @@ class ReservationService(
         reservation.paid = paid
         return repository.save(reservation)
     }
-    // VALIDATION
+
     fun validate(request: CreateReservationRequest, currentUser: UserEntity) {
         val validator = CreateReservationValidation(organizationService, repository, organizationMemberService, settings)
         validator.validate(request, currentUser)
@@ -386,13 +404,64 @@ class ReservationService(
     }
 
     // EMAILS
-     fun sendEmail(privateTemplate: EmailTemplateType, organizationTemplate: EmailTemplateType, reservation: ReservationEntity) {
+    // =========================================================================================================================================
+
+    private fun emitCreatedReservation(reservation: ReservationEntity) {
+        sseService.broadcast(ReserveEvents.RESERVATION_CREATED, ReservationDto(reservation))
+        sendEmailUsers(EmailTemplateType.RESERVATION_CREATED_PRIVATE, EmailTemplateType.RESERVATION_CREATED_ORGANIZATION, reservation)
+    }
+
+    // approve or reject reservation request
+    private fun emitReservationApproved(reservation: ReservationEntity) {
+        sseService.broadcast(ReserveEvents.RESERVATION_CONFIRMED, ReservationDto(reservation))
+        sendEmailUsers(EmailTemplateType.RESERVATION_CONFIRMED, EmailTemplateType.RESERVATION_CONFIRMED, reservation)
+    }
+
+    private fun emitReservationRejected(reservation: ReservationEntity) {
+        sseService.broadcast(ReserveEvents.RESERVATION_REJECTED, ReservationDto(reservation))
+        sendEmailUsers(EmailTemplateType.RESERVATION_REJECTED, EmailTemplateType.RESERVATION_REJECTED, reservation)
+    }
+
+    // approve or reject cancel reservation request
+    private fun emitReservationCancelRequested(reservation: ReservationEntity, requestedBy: String) {
+        sseService.broadcast(ReserveEvents.RESERVATION_CANCEL_REQUESTED, ReservationDto(reservation))
+
+        val model = mutableMapOf<String, Any>()
+        model["requestedBy"] = requestedBy
+
+        sendEmailAdmins(EmailTemplateType.RESERVATION_CANCEL_REQUESTED, reservation, model)
+    }
+
+    private fun emitReservationCancelled(reservation: ReservationEntity, requestedBy: String) {
+        sseService.broadcast(ReserveEvents.RESERVATION_CANCELED, ReservationDto(reservation))
+
+        val model = mutableMapOf<String, Any>()
+        model["requestedBy"] = requestedBy
+
+        sendEmailUsers(EmailTemplateType.RESERVATION_CANCELED_PRIVATE, EmailTemplateType.RESERVATION_CANCELED_ORGANIZATION, reservation, model)
+    }
+
+    /**
+     * Method will email all users who have reservations in the next 24 day
+     */
+    fun emitReservationReminders() {
+        val reservations = getTomorrowReservations()
+
+        reservations.forEach { reservation ->
+            Hibernate.initialize(reservation)
+            Hibernate.initialize(reservation.room)
+
+            sendEmailUsers(EmailTemplateType.RESERVATION_REMINDER, EmailTemplateType.RESERVATION_REMINDER, reservation)
+        }
+    }
+
+    // Sender
+    private fun sendEmailUsers(privateTemplate: EmailTemplateType, organizationTemplate: EmailTemplateType, reservation: ReservationEntity, model: MutableMap<String, Any> = mutableMapOf<String, Any>()) {
+
         val user = reservation.reservedBy
         val startAt = reservation.startAt
         val endAt = reservation.endAt
         val duration = Duration.between(startAt, endAt)
-
-        val model = mutableMapOf<String, Any>()
 
         model["roomName"] = reservation.room.name
         model["duration"] = duration.toHoursPart()
@@ -422,18 +491,20 @@ class ReservationService(
         }
     }
 
-    private fun sendCreatedReservationEmail(reservation: ReservationEntity) {
-        sendEmail(EmailTemplateType.RESERVATION_CREATED_PRIVATE, EmailTemplateType.RESERVATION_CREATED_ORGANIZATION, reservation)
-    }
+    private fun sendEmailAdmins(type: EmailTemplateType, reservation: ReservationEntity, model: MutableMap<String, Any> = mutableMapOf<String, Any>()) {
+        val startAt = reservation.startAt
+        val endAt = reservation.endAt
+        val duration = Duration.between(startAt, endAt)
 
-    fun sendReminders() {
-        val reservations = getTomorrowReservations()
+        model["roomName"] = reservation.room.name
+        model["duration"] = duration.toHoursPart()
+        model["startAt"] = startAt.toLocalTime()
+        model["endAt"] = endAt.toLocalTime()
 
-        reservations.forEach { reservation ->
-            Hibernate.initialize(reservation)
-            Hibernate.initialize(reservation.room)
-
-            sendEmail(EmailTemplateType.RESERVATION_REMINDER, EmailTemplateType.RESERVATION_REMINDER, reservation)
+        userService.getAllAdmins().forEach { admin ->
+            val recipient = EmailRecipient(admin)
+            emailService.sendEmailToUser(type, recipient, model)
         }
     }
+
 }

@@ -1,6 +1,6 @@
 package site.komuna.reserve.reservation.validation
 
-import site.komuna.reserve.common.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
 import site.komuna.reserve.organization.OrganizationService
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.ReservationRepository

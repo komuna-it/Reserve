@@ -3,9 +3,10 @@ package site.komuna.reserve.organization.organizationMember
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.exception.CannotPerformThatActionException
-import site.komuna.reserve.common.exception.Conflict409
-import site.komuna.reserve.common.exception.OrganizationMemberNotFoundException
+import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.httpError.exception.OrganizationLastOwnerException
+import site.komuna.reserve.common.httpError.exception.OrganizationMemberNotFoundException
+import site.komuna.reserve.common.httpError.exception.UserIsMemberOfOrganizationException
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
 import site.komuna.reserve.user.Role
@@ -72,7 +73,7 @@ class OrganizationMemberService(
         if (memberships.any { it.role == OrganizationMemberRole.OWNER } && role == OrganizationMemberRole.MEMBER) {
             val owners = getOwnersOfOrganization(organization.id!!)
             if (owners.size <= 1) {
-                throw Conflict409("Organization must have at least one owner")
+                throw OrganizationLastOwnerException()
             }
         }
 
@@ -92,7 +93,7 @@ class OrganizationMemberService(
 
     private fun addUser(organization: OrganizationEntity, user: UserEntity, addedBy: UserEntity, role: OrganizationMemberRole): OrganizationMemberEntity {
         if (isUserInOrganization(user.id!!, organization.id!!)) {
-            throw Conflict409("User already exists in this organization!")
+            throw UserIsMemberOfOrganizationException()
         }
         val organizationMember = OrganizationMemberEntity(
             organization = organization,
