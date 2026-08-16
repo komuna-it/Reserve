@@ -244,7 +244,6 @@ class ReservationService(
         return rejectReservationRequest(reservation, user)
     }
 
-    // Cancel reservation
     fun requestCancelReservation(reservationId: Long, cancelledBy: Long): ReservationEntity {
         val reservation = findById(reservationId)
         val cancelledByUser = userService.findById(cancelledBy)
@@ -271,7 +270,6 @@ class ReservationService(
 
         val time = Duration.between(canceledAt, startAt)
 
-        // Allow user to cancel a reservation within X hours without admin approval
         val allowedHour = settings.getIntValue(SettingsKey.RESERVATION_CANCELLATION_WITHOUT_APPROVAL_HOURS)
 
         if(time.toHours() > allowedHour) {
@@ -281,7 +279,6 @@ class ReservationService(
             return response
         }
 
-        // Save cancellation request
         val response = saveCancellationRequest(reservation, cancelledByUser, canceledAt)
 
         emitReservationCancelRequested(response, canceledBy)
@@ -310,7 +307,6 @@ class ReservationService(
         return changeStatus(reservation, ReservationStatus.REQUESTED_CANCELLATION)
     }
 
-    // Confirm cancel reservation
     fun confirmCancelReservation(reservationId: Long, approvedBy: Long): ReservationEntity {
         val reservation = findById(reservationId)
         val approvedByUser = userService.findById(approvedBy)

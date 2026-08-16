@@ -19,6 +19,10 @@ interface ReservationRepository:
         WHERE r.room.id = :roomId 
           AND r.startAt < :endAt 
           AND r.endAt > :startAt
+          AND r.status NOT IN (
+              site.komuna.reserve.reservation.model.ReservationStatus.CANCELLED,
+              site.komuna.reserve.reservation.model.ReservationStatus.REJECTED
+          )
     """)
     fun findOverlappingReservations(roomId: Long, startAt: OffsetDateTime, endAt: OffsetDateTime): List<ReservationEntity>
 

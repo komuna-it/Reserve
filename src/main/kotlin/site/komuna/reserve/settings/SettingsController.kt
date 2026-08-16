@@ -42,20 +42,21 @@ class SettingsController(
     }
 
     @GetMapping("")
-    fun getSettingKey(@RequestBody request: GetSettingsRequest, authentication: Authentication): ResponseEntity<List<SettingsDto>> {
+    fun getSettingKey(
+        @RequestParam(defaultValue = "false") all: Boolean,
+        @RequestParam(required = false) keys: List<SettingsKey>?,
+        authentication: Authentication
+    ): ResponseEntity<List<SettingsDto>> {
         val requestedBy = userService.findById(authentication.name.toLong())
-
         val settings = newArrayList<SettingsDto>()
 
-        if (request.all) {
+        if (all) {
             service.getSettings(requestedBy).forEach {
                 settings.add(SettingsDto(it))
             }
-        } else if (request.keys != null) {
-            request.keys!!.forEach {
-                val dto = SettingsDto(service.getSetting(it, requestedBy))
-                settings.add(dto)
-            }
+        } else keys?.forEach {
+            val dto = SettingsDto(service.getSetting(it.name, requestedBy))
+            settings.add(dto)
         }
 
         return ResponseEntity.ok(settings)
