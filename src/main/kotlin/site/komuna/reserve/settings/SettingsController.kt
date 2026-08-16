@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import site.komuna.reserve.settings.model.ChangeSettingsRequest
 import site.komuna.reserve.settings.model.GetSettingsRequest
@@ -50,20 +51,21 @@ class SettingsController(
     }
 
     @GetMapping("")
-    fun getSettingKey(@RequestBody request: GetSettingsRequest, authentication: Authentication): ResponseEntity<List<SettingsDto>> {
+    fun getSettingKey(
+        @RequestParam(defaultValue = "false") all: Boolean,
+        @RequestParam(required = false) keys: List<SettingsKey>?,
+        authentication: Authentication
+    ): ResponseEntity<List<SettingsDto>> {
         val requestedBy = userService.findById(authentication.name.toLong())
-
         val settings = newArrayList<SettingsDto>()
 
-        if (request.all) {
+        if (all) {
             service.getSettings(requestedBy).forEach {
                 settings.add(SettingsDto(it))
             }
-        } else if (request.keys != null) {
-            request.keys!!.forEach {
-                val dto = SettingsDto(service.getSetting(it, requestedBy))
-                settings.add(dto)
-            }
+        } else keys?.forEach {
+            val dto = SettingsDto(service.getSetting(it.name, requestedBy))
+            settings.add(dto)
         }
 
         return ResponseEntity.ok(settings)
