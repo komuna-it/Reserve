@@ -4,7 +4,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.annotation.PostConstruct
 import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.httpError.exception.CannotGetValueException
 import site.komuna.reserve.common.httpError.exception.InvalidSettingsValueException
 import site.komuna.reserve.settings.model.SettingsEntity
 import site.komuna.reserve.settings.model.SettingsKey
@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
 @Service
 class SettingsService(
     private val repository: SettingsRepository,
-    private val cache: ConcurrentHashMap<SettingsKey, String> = ConcurrentHashMap<SettingsKey, String>()
+    private val cache: ConcurrentHashMap<SettingsKey, SettingsEntity> = ConcurrentHashMap<SettingsKey, SettingsEntity>()
 ) {
 
     companion object {
@@ -32,7 +32,7 @@ class SettingsService(
         entity.value = value
         val response = repository.save(entity)
         
-        cache[settingsKey] = value
+        cache[settingsKey] = response
         applyChanges(response)
 
         return response
@@ -48,29 +48,50 @@ class SettingsService(
 
         val key = SettingsKey.valueOf(key)
 
+        if (key.databaseOnly) {
+            logger.warn { "User with id ${requestedBy.id} tried to get database only settings" }
+            throw CannotGetValueException(key.name)
+        }
+
         if(key.isSensitive && (requestedBy.role != Role.ADMIN && requestedBy.role != Role.MANAGER)) {
             logger.warn { "User with id ${requestedBy.id} tried to get sensitive settings" }
-
-            throw CannotPerformThatActionException("")
+            throw CannotGetValueException(key.name)
         }
 
         return repository.findById(key).get()
     }
 
-    fun getSettings(requestedBy: UserEntity): List<SettingsEntity> {
-        val response = repository.findAll()
+    /**
+     * Returns all settings that are not sensitive or database only
+     */
+    fun getAllSettings(requestedBy: UserEntity): List<SettingsEntity> {
+        val response = ArrayList<SettingsEntity>()
 
-        return if (requestedBy.role == Role.ADMIN || requestedBy.role == Role.MANAGER) {
-            response
-        } else {
-            response.filter { !it.isSensitive }
+        if (requestedBy.role == Role.ADMIN || requestedBy.role == Role.MANAGER) {
+            cache.forEach { (key, value) ->
+                if(!value.databaseOnly) {
+                    response.add(value)
+                }
+            }
         }
+        else {
+            cache.forEach { (key, value) ->
+                if(!value.databaseOnly && !value.isSensitive) {
+                    response.add(value)
+                }
+            }
+            return response
+        }
+
+        return response
     }
 
     fun getStringValue(key: SettingsKey): String {
-        return cache.computeIfAbsent(key) {
-            repository.findById(key).get().value
+        val value = cache.computeIfAbsent(key) {
+            repository.findById(key).get()
         }
+
+        return value.value
     }
 
     fun getIntValue(key: SettingsKey): Int {
@@ -101,26 +122,29 @@ class SettingsService(
 
         SettingsKey.entries.forEach { key ->
             if (!repository.existsById(key)) {
+                // Populate database with default values
                 logger.info { "Did not found settings with key: ${key.name} in database, creating it with default value: ${key.defaultValue}" }
 
-                repository.save(
+                val value = repository.save(
                     SettingsEntity(
                         key = key,
                         value = key.defaultValue,
-                        isSensitive = key.isSensitive
+                        isSensitive = key.isSensitive,
+                        databaseOnly = key.databaseOnly
                     )
                 )
 
-                cache[key] = key.defaultValue
+                cache[key] = value
             }
             else {
-                cache[key] = repository.findById(key).get().value
+                // Get settings from database and put it in a cache
+                cache[key] = repository.findById(key).get()
 
-                if(cache[key]?.contains("password") == true) {
+                if(cache[key]?.value!!.contains("password")) {
                     logger.info { "Found settings with key: ${key.name} in database, value: PASSWORD_HIDDEN" }
                 }
                 else {
-                    logger.info { "Found settings with key: ${key.name} in database, value: ${cache[key]}" }
+                    logger.info { "Found settings with key: ${key.name} in database, value: ${cache[key]?.value}" }
                 }
             }
         }

@@ -7,8 +7,8 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
 import site.komuna.reserve.settings.model.ChangeSettingsRequest
-import site.komuna.reserve.settings.model.GetSettingsRequest
 import site.komuna.reserve.settings.model.SettingsDto
+import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.user.UserService
 
 @RestController
@@ -47,11 +47,13 @@ class SettingsController(
         @RequestParam(required = false) keys: List<SettingsKey>?,
         authentication: Authentication
     ): ResponseEntity<List<SettingsDto>> {
+
         val requestedBy = userService.findById(authentication.name.toLong())
         val settings = newArrayList<SettingsDto>()
 
         if (all) {
-            service.getSettings(requestedBy).forEach {
+            logger.info { "Received a request from user id ${authentication.name} to get all settings" }
+            service.getAllSettings(requestedBy).forEach {
                 settings.add(SettingsDto(it))
             }
         } else keys?.forEach {

@@ -4,6 +4,7 @@ enum class SettingsKey(
     val defaultValue: String,
     val validator: Regex,
     val isSensitive: Boolean = false,
+    val databaseOnly: Boolean = false,
 ) {
     CONTACT_PHONE(
         defaultValue = "+48 555 245 156",
@@ -32,36 +33,43 @@ enum class SettingsKey(
     MAIL_SERVER_HOST(
         defaultValue = "smtp.gmail.com",
         validator = Regex(".*"),
-        isSensitive = true
+        isSensitive = true,
+        databaseOnly = true
     ),
     MAIL_SERVER_PORT(
         defaultValue = "587",
         validator = Regex("\\d+"),
-        isSensitive = true
+        isSensitive = true,
+        databaseOnly = true
     ),
     MAIL_SERVER_USERNAME(
         defaultValue = "username@gmail.com",
         validator = Regex("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$"),
-        isSensitive = true
+        isSensitive = true,
+        databaseOnly = true
     ),
     MAIL_SERVER_PASSWORD(
         defaultValue = "applicationPassword",
         validator = Regex(".*"),
-        isSensitive = true
+        isSensitive = true,
+        databaseOnly = true
     ),
     MAIL_SMTP_AUTH(
         defaultValue = "true",
         validator = Regex("true|false"),
-        isSensitive = true
+        isSensitive = true,
+        databaseOnly = true
     ),
     MAIL_SMTP_STARTTLS_ENABLE(
         defaultValue = "true",
         validator = Regex("true|false"),
-        isSensitive = true
+        isSensitive = true,
+        databaseOnly = true
     ),
     MAIL_SERVER_BETA_ADDRESS(
         defaultValue = "username@gmail.com",
         validator = Regex("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$"),
-        isSensitive = true
+        isSensitive = true,
+        databaseOnly = true
     );
 }

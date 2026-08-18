@@ -69,7 +69,8 @@ class SecurityConfig(
         val configuration = CorsConfiguration().apply {
             allowedOriginPatterns = listOf(
                 "http://localhost:*",
-                "https://localhost:*"
+                "https://localhost:*",
+                "https://vipsound.lmt.technology"
             )
             allowedMethods = listOf("*")
             allowedHeaders = listOf("*")

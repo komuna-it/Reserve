@@ -11,5 +11,6 @@ class SettingsEntity(
     var key: SettingsKey,
     var value: String,
     var isSensitive: Boolean = false,
+    var databaseOnly: Boolean = false,
 ) {
 }
