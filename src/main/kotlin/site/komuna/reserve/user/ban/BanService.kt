@@ -1,9 +1,8 @@
 package site.komuna.reserve.user.ban
 
-import jakarta.transaction.Transactional
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.boot.actuate.logging.LoggersEndpoint
 import org.springframework.stereotype.Service
-import site.komuna.reserve.user.UserService
-import site.komuna.reserve.user.ban.model.BanDto
 import site.komuna.reserve.user.ban.model.BanEntity
 import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
@@ -12,8 +11,12 @@ import java.time.ZoneOffset
 
 @Service
 class BanService(
-    private val repository: BanRepository
+    private val repository: BanRepository,
 ) {
+
+    companion object {
+        private val logger = KotlinLogging.logger {}
+    }
 
     fun banUser(user: UserEntity, by: UserEntity, reason: String, duration: Duration): BanEntity {
         val now = OffsetDateTime.now(ZoneOffset.UTC)
@@ -26,14 +29,18 @@ class BanService(
             bannedAt = now,
             banExpires = expires
         )
-        return repository.save(ban)
+        val response = repository.save(ban)
+
+        logger.info { "User ${user.email} was banned by ${by.email} for $duration" }
+        return response
     }
 
-    fun unbanUser(user: UserEntity) {
+    fun unbanUser(user: UserEntity, requestedUser: UserEntity) {
         val banEntity = isUserBanned(user) ?: return
 
         banEntity.banExpires = OffsetDateTime.now(ZoneOffset.UTC)
         repository.save(banEntity)
+        logger.info { "User ${user.email} was unbanned by ${requestedUser.email}" }
     }
 
     fun isUserBanned(id: Long): BanEntity? {
@@ -45,8 +52,6 @@ class BanService(
     }
 
     fun isUserBanned(user: UserEntity): BanEntity? {
-        val now = OffsetDateTime.now(ZoneOffset.UTC)
-
         return isUserBanned(user.id!!)
     }
 }

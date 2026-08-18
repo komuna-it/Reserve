@@ -8,17 +8,10 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
-import org.springframework.web.bind.annotation.CookieValue
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import site.komuna.reserve.auth.request.LoginRequest
 import site.komuna.reserve.auth.request.RegisterRequest
-import site.komuna.reserve.common.error.ErrorResponse
-import site.komuna.reserve.common.error.ErrorType
+import site.komuna.reserve.common.httpError.exception.UserBannedException
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.ban.BanService
 import site.komuna.reserve.user.model.UserDto
@@ -52,12 +45,7 @@ class AuthController(
         if (activeBan != null) {
             logger.warn { "User ${userEntity.id} is banned until ${activeBan.banExpires}" }
 
-            val errorResponse = ErrorResponse(
-                errorType = ErrorType.USER_BANNED,
-                message = "User is banned until ${activeBan.banExpires}",
-                bannedUntil = activeBan.banExpires
-            )
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse)
+            throw UserBannedException(activeBan.banExpires)
         }
 
         val loginData = service.login(request.email, request.password)

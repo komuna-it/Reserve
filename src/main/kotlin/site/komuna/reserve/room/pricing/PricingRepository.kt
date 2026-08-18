@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository
 import site.komuna.reserve.reservation.model.ReservationType
 import site.komuna.reserve.room.model.RoomEntity
 import site.komuna.reserve.room.pricing.model.PricingEntity
-import java.math.BigDecimal
 import java.time.OffsetDateTime
 
 @Repository

@@ -1,14 +1,6 @@
 package site.komuna.reserve.room.pricing.model
 
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.Table
+import jakarta.persistence.*
 import site.komuna.reserve.reservation.model.ReservationType
 import site.komuna.reserve.room.model.RoomEntity
 import site.komuna.reserve.user.model.UserEntity

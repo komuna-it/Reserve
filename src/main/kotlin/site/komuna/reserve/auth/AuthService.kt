@@ -5,10 +5,9 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import site.komuna.reserve.auth.request.RegisterRequest
 import site.komuna.reserve.auth.response.LoginResponse
-import site.komuna.reserve.common.exception.EmailAlreadyTakenException
-import site.komuna.reserve.common.exception.EmailNotConfirmedException
-import site.komuna.reserve.common.exception.InvalidCredentialsException
-import site.komuna.reserve.common.exception.TokenExpiredException
+import site.komuna.reserve.common.httpError.exception.EmailNotConfirmedException
+import site.komuna.reserve.common.httpError.exception.EmailTakenException
+import site.komuna.reserve.common.httpError.exception.InvalidCredentialsException
 import site.komuna.reserve.email.EmailService
 import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplateType
@@ -32,7 +31,7 @@ class AuthService (
 
     fun register(request: RegisterRequest) {
         if(userService.isEmailTaken(request.email)) {
-            throw EmailAlreadyTakenException()
+            throw EmailTakenException()
         }
 
         val newUser = userService.createUser(request)
@@ -48,7 +47,7 @@ class AuthService (
     fun login(email: String, password: String) : LoginResponse {
         val user = authenticate(email, password)
 
-        if(!userService.wasEmailConfirmed(user)) throw EmailNotConfirmedException()
+        if(!userService.wasEmailConfirmed(user)) throw EmailNotConfirmedException(email)
 
         val refreshToken = refreshTokenService.generateRefreshToken(user)
         val accessToken = accessTokenService.generateAccessToken(user, refreshToken)
@@ -63,13 +62,7 @@ class AuthService (
     }
 
     fun confirmEmail(token: String) {
-        try {
-            verificationTokenService.confirmEmail(token)
-        }
-        catch (e: Exception) {
-            verificationTokenService.regenerateVerificationToken(token)
-            throw TokenExpiredException()
-        }
+        verificationTokenService.confirmEmail(token)
     }
 
     private fun authenticate(email: String, password: String): UserEntity {

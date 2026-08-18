@@ -10,10 +10,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
-import site.komuna.reserve.common.error.ErrorResponse
-import site.komuna.reserve.common.error.ErrorType
+import site.komuna.reserve.common.httpError.ReserveErrorBody
+import site.komuna.reserve.common.httpError.exception.UserBannedException
 import site.komuna.reserve.user.ban.BanService
-import java.time.OffsetDateTime
 
 @Component
 class JwtAuthenticationFilter(
@@ -53,19 +52,14 @@ class JwtAuthenticationFilter(
             val ban = banService.isUserBanned(userId)
 
             if (ban != null) {
-                logger.warn("User $userId is banned until ${ban.banExpires}")
+                val exception = UserBannedException(ban.banExpires)
+                val exceptionDto = ReserveErrorBody(exception)
 
-                val errorResponse = ErrorResponse().apply {
-                    this.errorType = ErrorType.USER_BANNED
-                    this.message = "User is banned until ${ban.banExpires}"
-                    this.bannedUntil = objectMapper.writeValueAsString(ban.banExpires) as OffsetDateTime?
-                }
-
-                response.status = HttpServletResponse.SC_FORBIDDEN
+                response.status = exception.httpStatus.value()
                 response.contentType = MediaType.APPLICATION_JSON_VALUE
                 response.characterEncoding = "UTF-8"
 
-                objectMapper.writeValue(response.writer, errorResponse)
+                objectMapper.writeValue(response.writer, exceptionDto)
                 return
             }
 

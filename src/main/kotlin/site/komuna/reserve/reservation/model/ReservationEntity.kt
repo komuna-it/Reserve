@@ -1,15 +1,6 @@
 package site.komuna.reserve.reservation.model
 
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.Table
+import jakarta.persistence.*
 import org.hibernate.annotations.Formula
 import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.room.model.RoomEntity
@@ -56,7 +47,7 @@ class ReservationEntity(
     constructor(request: CreateReservationRequest) : this(
         id = null,
         room = request.room!!,
-        type = request.type,
+        type = ReservationType.from(request.type),
         organization = request.organization,
         reservedBy = request.reservedByUser!!,
         reservedAt = request.reservedAt!!,

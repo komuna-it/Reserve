@@ -1,6 +1,6 @@
 package site.komuna.reserve.organization.organizationMember
 
-import site.komuna.reserve.common.exception.RoleNotFoundException
+import site.komuna.reserve.common.httpError.exception.RoleNotFoundException
 
 enum class OrganizationMemberRole {
     OWNER,

@@ -1,12 +1,11 @@
 package site.komuna.reserve.user
 
-
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 import site.komuna.reserve.user.model.UserEntity
-import java.util.Optional
+import java.util.*
 
 @Repository
 interface UserRepository: JpaRepository<UserEntity, Long> {

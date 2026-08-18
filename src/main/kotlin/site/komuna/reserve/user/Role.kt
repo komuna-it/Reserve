@@ -1,12 +1,12 @@
 package site.komuna.reserve.user
 
-import site.komuna.reserve.common.exception.RoleNotFoundException
+import site.komuna.reserve.common.httpError.exception.RoleNotFoundException
 
 enum class Role {
     USER,
     MANAGER,
     ADMIN,
-    SYSTEM; // SYSTEM is a special role used for internal purposes. It is not exposed to the user.
+    SYSTEM; // SYSTEM is a special role used for internal purposes. This role should not be used by users.
 
     companion object {
         fun from(value: String): Role {

@@ -6,7 +6,7 @@ import site.komuna.reserve.security.token.TokenProperties
 import site.komuna.reserve.user.model.UserEntity
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.util.UUID
+import java.util.*
 
 @Service
 class RefreshTokenService(

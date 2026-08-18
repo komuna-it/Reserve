@@ -3,7 +3,6 @@ package site.komuna.reserve.email.emailTemplate
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.annotation.PostConstruct
 import org.springframework.stereotype.Service
-import site.komuna.reserve.common.exception.ReserveException
 import site.komuna.reserve.email.EmailTemplateRepository
 import site.komuna.reserve.email.model.EmailTemplate
 import site.komuna.reserve.email.model.EmailTemplateEntity

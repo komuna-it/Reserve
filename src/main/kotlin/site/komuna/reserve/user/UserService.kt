@@ -4,13 +4,13 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.transaction.Transactional
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import site.komuna.reserve.auth.request.RegisterRequest
-import site.komuna.reserve.common.exception.InvalidCredentialsException
-import site.komuna.reserve.common.exception.ReserveException
-import site.komuna.reserve.common.exception.UserNotFoundException
+import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
+import site.komuna.reserve.common.httpError.exception.InternalServerException
+import site.komuna.reserve.common.httpError.exception.InvalidCredentialsException
+import site.komuna.reserve.common.httpError.exception.UserNotFoundException
 import site.komuna.reserve.email.EmailService
 import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplateType
@@ -26,7 +26,7 @@ import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.util.Locale
+import java.util.*
 
 @Service
 class UserService(
@@ -44,46 +44,44 @@ class UserService(
     fun createUser(request: RegisterRequest): UserEntity {
         val now = OffsetDateTime.now(ZoneOffset.UTC)
         val email = request.email
-        val nick = request.name
         val password = passwordEncoder.encode(request.password)
-        val role = Role.USER
-        val preferredLanguage = request.preferredLanguage
 
         val savedUser = repository.save(
             UserEntity(
                 email = email,
-                nick = nick,
+                nick = request.name,
                 password = password,
-                role = role,
+                role = Role.USER,
                 created = now,
                 passwordChanged = now,
-                preferredLanguage = preferredLanguage
+                preferredLanguage = request.preferredLanguage
             )
         )
 
-        logger.info { "User with email: ${savedUser.email} was created" }
+        logger.trace { "Created a new user" }
+        logger.trace { "ID: ${savedUser.id}, Email: ${savedUser.email}, Nick: ${savedUser.nick}" }
 
         return savedUser
     }
 
     /**
-     * Method assigns user role to a user
+     * Method assigns a role to a user.
      */
     fun assigneeUserRole(id: Long, role: Role, by: String): UserEntity {
         val targetUser = findById(id)
         val sourceUser = findById(by)
 
         if (role == Role.MANAGER) {
-            logger.error { "User: ${sourceUser.email} tried to assign Manager role to user: ${targetUser.email}." }
-            throw ReserveException(HttpStatus.FORBIDDEN, "You are not allowed to assign Manager role")
+            logger.warn { "User: ${sourceUser.email} tried to assign Manager role to user: ${targetUser.email}." }
+            throw CannotPerformThatActionException("")
         }
 
         if (role == Role.SYSTEM) {
-            logger.error { "User: ${sourceUser.email} tried to assign System role to user: ${targetUser.email}." }
-            throw ReserveException(HttpStatus.FORBIDDEN, "You are not allowed to assign System role")
+            logger.warn { "User: ${sourceUser.email} tried to assign System role to user: ${targetUser.email}." }
+            throw CannotPerformThatActionException("")
         }
 
-        logger.info { "Assignee role $role to user: ${targetUser.email} by user ID: ${sourceUser.email}" }
+        logger.trace { "Assignee role $role to user: ${targetUser.email} by user ID: ${sourceUser.email}" }
 
         targetUser.role = role
 
@@ -95,11 +93,23 @@ class UserService(
         return assigneeUserRole(id, role, by)
     }
 
+    /**
+     * UI and emails are created based on a preferred language
+     */
     fun assigneePreferredLanguage(id: Long, language: String): UserEntity {
         val user = findById(id)
 
         user.preferredLanguage = language
-        return repository.save(user)
+        val response = repository.save(user)
+
+        logger.trace { "Preferred language for user: ${user.email} set to: ${user.preferredLanguage}" }
+        return response
+    }
+
+    // BAN
+    fun isUserBanned(id: Long): Boolean {
+        val ban = banService.isUserBanned(id)
+        return ban != null
     }
 
     @Transactional
@@ -110,8 +120,6 @@ class UserService(
         val expires = OffsetDateTime.now(ZoneOffset.UTC) + duration
         val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy HH:mm", Locale.of("pl", "PL"))
         val formattedExpires = expires.format(formatter)
-
-        if (reason.isBlank()) throw ReserveException(HttpStatus.BAD_REQUEST, "Reason is required")
 
         refreshTokenService.revokeAllTokensForUser(user)
 
@@ -125,13 +133,15 @@ class UserService(
         return banService.banUser(user, bannedBy, reason, duration)
     }
 
-    fun unbanUser(userId: Long): UserEntity {
+    fun unbanUser(userId: Long, requestedBy: Long): UserEntity {
         val user = findById(userId)
+        val requestedUser = findById(requestedBy)
 
-        banService.unbanUser(user)
+        banService.unbanUser(user, requestedUser)
         return user
     }
 
+    // TRUSTED
     fun setTrusted(userID: Long, trusted: Boolean): UserEntity {
         val user = findById(userID)
         return setTrusted(user, trusted)
@@ -142,6 +152,7 @@ class UserService(
         return repository.save(user)
     }
 
+    // PASSWORD
     fun updatePassword(userId: Long, currentPassword: String, newPassword: String): UserEntity {
         val user = findById(userId)
 
@@ -185,7 +196,32 @@ class UserService(
         repository.save(user)
     }
 
-    // get methods
+    fun generatePassword(length: Int = 16): String {
+        require(length >= 3) {
+            "Password length must be at least 3"
+        }
+
+        val random = SecureRandom()
+
+        val upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        val lower = "abcdefghijklmnopqrstuvwxyz"
+        val digits = "0123456789"
+        val all = upper + lower + digits
+
+        val chars = mutableListOf(
+            upper[random.nextInt(upper.length)],
+            lower[random.nextInt(lower.length)],
+            digits[random.nextInt(digits.length)]
+        )
+
+        repeat(length - chars.size) {
+            chars += all[random.nextInt(all.length)]
+        }
+
+        return chars.shuffled(random).joinToString("")
+    }
+
+    // GET METHODS
     fun findById(id: Long): UserEntity {
         return repository.findById(id).orElseThrow { UserNotFoundException(id) }
     }
@@ -201,13 +237,17 @@ class UserService(
     fun getSystemUser(): UserEntity {
         val users = repository.findByRole(Role.SYSTEM)
 
-        if (users.isEmpty()) throw ReserveException(HttpStatus.NOT_FOUND, "System user not found")
-        if (users.size > 1) throw ReserveException(
-            HttpStatus.CONFLICT,
-            "We have more than one system user. That should not happen"
-        )
+        if (users.isEmpty() || users.size > 1) {
+            logger.error { "System user not found or more than one user with system role" }
+            throw InternalServerException()
+        }
 
         return users[0]
+    }
+
+    fun getUsers(pageable: Pageable): Page<UserDto> {
+        return repository.findByNickNot("SYSTEM", pageable)
+            .map { convertToUserDto(it) }
     }
 
     fun getAllAdmins(): List<UserEntity> {
@@ -216,7 +256,7 @@ class UserService(
         return admins + managers
     }
 
-    // Validation methods
+    // VALIDATION
     fun isEmailTaken(email: String): Boolean {
         return repository.existsUserEntityByEmail(email)
     }
@@ -228,44 +268,6 @@ class UserService(
         return validationTokenService.getTokenForUser(user) == null
     }
 
-    fun isUserBanned(id: Long): Boolean {
-        val ban = banService.isUserBanned(id)
-        return ban != null
-    }
-
-    fun getUsers(pageable: Pageable): Page<UserDto> {
-        return repository.findByNickNot("SYSTEM", pageable)
-            .map { convertToUserDto(it) }
-    }
-
-    // Password generation
-    fun generatePassword(length: Int = 16): String {
-        val random = SecureRandom()
-
-        val upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        val lower = "abcdefghijklmnopqrstuvwxyz"
-        val digits = "0123456789"
-        val special = "!@#$%^&*"
-        val all = upper + lower + digits + special
-
-        require(length >= 4)
-
-        val chars = mutableListOf(
-            upper.random(random),
-            lower.random(random),
-            digits.random(random),
-            special.random(random)
-        )
-
-        repeat(length - 4) {
-            chars += all.random(random)
-        }
-
-        return chars.shuffled(random).joinToString("")
-    }
-
-    private fun String.random(random: SecureRandom): Char =
-        this[random.nextInt(length)]
 
     fun convertToUserDto(user: UserEntity): UserDto {
         val activeBan = banService.isUserBanned(user)

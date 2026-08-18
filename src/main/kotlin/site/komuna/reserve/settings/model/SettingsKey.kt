@@ -5,6 +5,14 @@ enum class SettingsKey(
     val validator: Regex,
     val isSensitive: Boolean = false,
 ) {
+    CONTACT_PHONE(
+        defaultValue = "+48 555 245 156",
+        validator = Regex(".*")
+    ),
+    CONTACT_EMAIL(
+        defaultValue = "contact@vipsound.com",
+        validator = Regex("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$"),
+    ),
     RESERVATION_CANCELLATION_WITHOUT_APPROVAL_HOURS(
         defaultValue = "24",
         validator = Regex("\\d+")

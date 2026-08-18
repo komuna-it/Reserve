@@ -2,18 +2,14 @@ package site.komuna.reserve.reservation
 
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verifySequence
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import site.komuna.reserve.common.exception.CannotPerformThatActionException
-import site.komuna.reserve.common.exception.OrganizationMemberNotFoundException
+import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
 import site.komuna.reserve.organization.OrganizationService
-import site.komuna.reserve.organization.model.OrganizationEntity
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.model.CreateReservationRequest
 import site.komuna.reserve.reservation.validation.CreateReservationValidation
 import site.komuna.reserve.settings.SettingsService
-import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
 import java.time.OffsetDateTime
 import kotlin.test.assertTrue

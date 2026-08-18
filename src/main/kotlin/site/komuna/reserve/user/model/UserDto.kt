@@ -3,7 +3,6 @@ package site.komuna.reserve.user.model
 import com.fasterxml.jackson.annotation.JsonInclude
 import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.ban.model.BanDto
-import java.time.OffsetDateTime
 
 @JsonInclude(JsonInclude.Include.NON_NULL) // nie wysylaj banDto jesli nie jest zbanowany
 data class UserDto(
