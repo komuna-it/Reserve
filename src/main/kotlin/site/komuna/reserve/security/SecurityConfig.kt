@@ -11,6 +11,8 @@ import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.security.web.csrf.InvalidCsrfTokenException
+import org.springframework.security.web.csrf.MissingCsrfTokenException
 
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -38,6 +40,30 @@ class SecurityConfig(
                         }
                     })
                     .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
+            }
+            .exceptionHandling { exception ->
+                exception.accessDeniedHandler { request, response, ex ->
+                    when (ex) {
+
+                        is MissingCsrfTokenException -> {
+                            response.status = 403
+                            response.writer.write(
+                                """{"type":"MISSING_ZSRF_TOKEN"}"""
+                            )
+                        }
+
+                        is InvalidCsrfTokenException -> {
+                            response.status = 403
+                            response.writer.write(
+                                """{"type":"INVALID_ZSRF_TOKEN"}"""
+                            )
+                        }
+
+                        else -> {
+                            response.status = 403
+                        }
+                    }
+                }
             }
             .addFilterAfter(CsrfCookieFilter(), BasicAuthenticationFilter::class.java)
             .cors {  }

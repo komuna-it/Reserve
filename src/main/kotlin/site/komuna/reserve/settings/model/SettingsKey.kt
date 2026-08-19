@@ -71,5 +71,23 @@ enum class SettingsKey(
         validator = Regex("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$"),
         isSensitive = true,
         databaseOnly = true
-    );
+    ),
+    FRONTEND_URL(
+        defaultValue = "https://vipsound.lmt.technology/",
+        validator = Regex(".*"),
+        isSensitive = true,
+        databaseOnly = true
+    ),
+    CONFIRMATION_EMAIL_LINK(
+        defaultValue = "confirm-email?token=",
+        validator = Regex(".*"),
+        isSensitive = true,
+        databaseOnly = true
+    ),
+    RESET_PASSWORD_LINK(
+        defaultValue = "reset-password?token=",
+        validator = Regex(".*"),
+        isSensitive = true,
+        databaseOnly = true
+    )
 }
