@@ -115,8 +115,6 @@ class OrganizationMemberService(
             ?: throw OrganizationMemberNotFoundException(user.id!!, organization.id!!)
     }
 
-
-
     fun isOwnerOrAdmin(user: UserEntity, organization: OrganizationEntity): Boolean {
         if (user.role == Role.ADMIN) {
             return true

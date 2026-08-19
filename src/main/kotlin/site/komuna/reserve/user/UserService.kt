@@ -64,6 +64,28 @@ class UserService(
         return savedUser
     }
 
+    @Transactional
+    fun deleteAccount(userId: Long) {
+        val user = findById(userId)
+
+        deleteAccount(user)
+    }
+
+    fun deleteAccount(user: UserEntity) {
+        logger.trace { "User ${user.email} requested to delete their account" }
+
+        user.nick = "DELETED"
+        user.trusted = false
+        user.role = Role.ORPHAN
+        user.email = "DELETED"
+        user.password = ""
+
+        refreshTokenService.revokeAllTokensForUser(user)
+
+        repository.save(user)
+        logger.trace { "User ${user.email} account deleted"}
+    }
+
     /**
      * Method assigns a role to a user.
      */
@@ -261,13 +283,13 @@ class UserService(
         return repository.existsUserEntityByEmail(email)
     }
 
+
     /**
      * Email was confirmed if table verification_tokens doesn't contain a token for this user
      */
     fun wasEmailConfirmed(user: UserEntity): Boolean {
         return validationTokenService.getTokenForUser(user) == null
     }
-
 
     fun convertToUserDto(user: UserEntity): UserDto {
         val activeBan = banService.isUserBanned(user)

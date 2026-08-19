@@ -37,6 +37,7 @@ class SecurityConfig(
                             cookie.secure(true)
                             cookie.sameSite("Lax")
                             cookie.path("/")
+                            cookie.domain("vipsound.lmt.technology")
                         }
                     })
                     .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
@@ -81,6 +82,7 @@ class SecurityConfig(
                     .requestMatchers("/rooms/**").permitAll()
                     .requestMatchers("/sse").permitAll()
                     .requestMatchers("/users/forgotPassword").permitAll()
+                    .requestMatchers("/policy/**").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(

@@ -114,10 +114,13 @@ class EmailService(
     /**
      * Render the email body with provided data in a model
      */
-    private fun render(template: EmailTemplate, model: Map<String, Any>): String {
+    private fun render(template: EmailTemplate, model: MutableMap<String, Any>): String {
         val header = template.header
         val body = template.body
         val footer = template.footer
+        
+        model["contactNumber"] = settings.getStringValue(SettingsKey.CONTACT_PHONE)
+        model["contactEmail"] = settings.getStringValue(SettingsKey.CONTACT_EMAIL)
 
         val debugInfo = if (activeProfile != "prod") {
             """

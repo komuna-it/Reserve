@@ -16,6 +16,8 @@ import site.komuna.reserve.security.token.access.AccessTokenService
 import site.komuna.reserve.security.token.refresh.RefreshToken
 import site.komuna.reserve.security.token.refresh.RefreshTokenService
 import site.komuna.reserve.security.token.verification.VerificationTokenService
+import site.komuna.reserve.settings.SettingsService
+import site.komuna.reserve.settings.model.SettingsKey
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 
@@ -26,6 +28,7 @@ class AuthService (
     private val accessTokenService: AccessTokenService,
     private val refreshTokenService: RefreshTokenService,
     private val verificationTokenService: VerificationTokenService,
+    private val settings: SettingsService,
     private val emailService: EmailService,
 ) {
 
@@ -39,7 +42,10 @@ class AuthService (
         val model = mutableMapOf<String, Any>()
 
         val recipient = EmailRecipient(newUser)
-        model["verificationToken"] = verificationToken.token
+
+        val domain = settings.getStringValue(SettingsKey.FRONTEND_URL)
+        val link = settings.getStringValue(SettingsKey.CONFIRMATION_EMAIL_LINK)
+        model["link"] = domain+link+verificationToken.token
 
         emailService.sendEmailToUser(EmailTemplateType.ACTIVATION_EMAIL, recipient, model)
     }
