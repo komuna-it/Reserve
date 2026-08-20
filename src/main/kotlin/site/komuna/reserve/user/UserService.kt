@@ -278,11 +278,15 @@ class UserService(
         return admins + managers
     }
 
+    fun getDeletedUsers(): List<UserEntity> {
+        return repository.findByRole(Role.ORPHAN)
+    }
+
+
     // VALIDATION
     fun isEmailTaken(email: String): Boolean {
         return repository.existsUserEntityByEmail(email)
     }
-
 
     /**
      * Email was confirmed if table verification_tokens doesn't contain a token for this user

@@ -167,6 +167,10 @@ class OrganizationService(
         organizationMemberService.removeMember(organization, user)
     }
 
+    fun unassignOrphanUsers() {
+        organizationMemberService.unassignOrphanUsers()
+    }
+
     @Transactional
     fun assignRole(userId: Long, organizationId: Long, roleStr: String, assignedBy: Long): OrganizationMemberEntity {
         val organization = getOrganization(organizationId)

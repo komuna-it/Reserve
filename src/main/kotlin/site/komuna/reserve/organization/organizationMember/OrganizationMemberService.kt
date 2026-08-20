@@ -62,6 +62,10 @@ class OrganizationMemberService(
         repository.deleteAll(memberships)
     }
 
+    fun unassignOrphanUsers() {
+        repository.deleteByUserRole(Role.ORPHAN)
+    }
+
     @Transactional
     fun assignRole(organization: OrganizationEntity, user: UserEntity, role: OrganizationMemberRole): OrganizationMemberEntity {
         val memberships = repository.findAllByOrganizationIdAndUserId(organization.id!!, user.id!!)

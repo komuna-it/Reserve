@@ -1,8 +1,12 @@
 package site.komuna.reserve.organization.organizationMember
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
+import site.komuna.reserve.user.Role
 
 @Repository
 interface OrganizationMemberRepository: JpaRepository<OrganizationMemberEntity, Long> {
@@ -17,5 +21,13 @@ interface OrganizationMemberRepository: JpaRepository<OrganizationMemberEntity, 
     fun countByOrganizationIdAndRole(organizationId: Long, role: OrganizationMemberRole): Long
 
     fun findByUserId(userId: Long): List<OrganizationMemberEntity>
+
+    @Modifying
+    @Transactional
+    @Query("""
+    delete from OrganizationMemberEntity om
+    where om.user.role = :role
+    """)
+    fun deleteByUserRole(role: Role): Int
 
 }
