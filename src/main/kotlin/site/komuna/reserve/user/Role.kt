@@ -3,6 +3,7 @@ package site.komuna.reserve.user
 import site.komuna.reserve.common.httpError.exception.RoleNotFoundException
 
 enum class Role {
+    ORPHAN,
     USER,
     MANAGER,
     ADMIN,

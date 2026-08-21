@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.httpError.exception.OrganizationNotFoundException
+import site.komuna.reserve.common.httpError.exception.UserNotFoundException
 import site.komuna.reserve.organization.model.CreateOrganizationRequest
 import site.komuna.reserve.organization.model.OrganizationDto
 import site.komuna.reserve.organization.model.OrganizationEntity
@@ -19,6 +20,7 @@ import site.komuna.reserve.organization.organizationMember.OrganizationMemberRol
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberDto
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberEntity
+import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 
@@ -165,10 +167,19 @@ class OrganizationService(
         organizationMemberService.removeMember(organization, user)
     }
 
+    fun unassignOrphanUsers() {
+        organizationMemberService.unassignOrphanUsers()
+    }
+
     @Transactional
     fun assignRole(userId: Long, organizationId: Long, roleStr: String, assignedBy: Long): OrganizationMemberEntity {
         val organization = getOrganization(organizationId)
         val user = userService.findById(userId)
+
+        if(user.role == Role.ORPHAN) {
+            throw UserNotFoundException(userId)
+        }
+
         val assignedByUser = userService.findById(assignedBy)
         val role = OrganizationMemberRole.from(roleStr)
 

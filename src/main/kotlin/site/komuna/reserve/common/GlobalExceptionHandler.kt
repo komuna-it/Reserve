@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import site.komuna.reserve.common.httpError.HttpReserveException
+import site.komuna.reserve.common.httpError.ReserveErrorResponse
 import site.komuna.reserve.common.httpError.exception.MissingDataException
 import site.komuna.reserve.common.httpError.exception.ValidationException
 import java.time.OffsetDateTime
@@ -14,14 +15,7 @@ import java.time.ZoneOffset
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
-    /**
-     * ReserveErrorResponse is a standardized error response format.
-     */
-    data class ReserveErrorResponse(
-        val timestamp: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
-        val type: String,
-        val body: Any?
-    )
+
 
     /**
      * Handler catches HttpReserveException and converts them to response

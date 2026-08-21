@@ -5,6 +5,7 @@ import org.hibernate.validator.internal.util.CollectionHelper.newArrayList
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -36,6 +37,15 @@ class UserController(
         return ResponseEntity.ok(response)
     }
 
+    @DeleteMapping("")
+    fun deleteAccount(authentication: Authentication): ResponseEntity<Void> {
+        val userId = authentication.name.toLong()
+        service.deleteAccount(userId)
+
+        return ResponseEntity
+            .status(HttpStatus.NO_CONTENT)
+            .build()
+    }
 
     @PutMapping("/assigneUser/{id}/role/{role}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")

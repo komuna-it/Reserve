@@ -11,6 +11,8 @@ import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.security.web.csrf.InvalidCsrfTokenException
+import org.springframework.security.web.csrf.MissingCsrfTokenException
 
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -35,9 +37,34 @@ class SecurityConfig(
                             cookie.secure(true)
                             cookie.sameSite("Lax")
                             cookie.path("/")
+                            cookie.domain("vipsound.lmt.technology")
                         }
                     })
                     .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
+            }
+            .exceptionHandling { exception ->
+                exception.accessDeniedHandler { request, response, ex ->
+                    when (ex) {
+
+                        is MissingCsrfTokenException -> {
+                            response.status = 403
+                            response.writer.write(
+                                """{"type":"MISSING_ZSRF_TOKEN"}"""
+                            )
+                        }
+
+                        is InvalidCsrfTokenException -> {
+                            response.status = 403
+                            response.writer.write(
+                                """{"type":"INVALID_ZSRF_TOKEN"}"""
+                            )
+                        }
+
+                        else -> {
+                            response.status = 403
+                        }
+                    }
+                }
             }
             .addFilterAfter(CsrfCookieFilter(), BasicAuthenticationFilter::class.java)
             .cors {  }
@@ -55,6 +82,7 @@ class SecurityConfig(
                     .requestMatchers("/rooms/**").permitAll()
                     .requestMatchers("/sse").permitAll()
                     .requestMatchers("/users/forgotPassword").permitAll()
+                    .requestMatchers("/policy/**").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(
@@ -69,7 +97,8 @@ class SecurityConfig(
         val configuration = CorsConfiguration().apply {
             allowedOriginPatterns = listOf(
                 "http://localhost:*",
-                "https://localhost:*"
+                "https://localhost:*",
+                "https://vipsound.lmt.technology"
             )
             allowedMethods = listOf("*")
             allowedHeaders = listOf("*")
