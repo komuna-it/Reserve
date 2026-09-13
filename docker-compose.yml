@@ -1,0 +1,41 @@
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reserve-api
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    depends_on:
+      postgres:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reserve
+      SPRING_DATASOURCE_USERNAME: reserve
+      SPRING_DATASOURCE_PASSWORD: tYcqib-saqnos-nivvu0
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: reserve-database
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: reserve
+      POSTGRES_USER: reserve
+      POSTGRES_PASSWORD: tYcqib-saqnos-nivvu0
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U reserve -d reserve" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:
+
+
+

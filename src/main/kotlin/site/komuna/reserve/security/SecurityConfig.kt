@@ -37,7 +37,7 @@ class SecurityConfig(
                             cookie.secure(true)
                             cookie.sameSite("Lax")
                             cookie.path("/")
-                            cookie.domain("vipsound.lmt.technology")
+//                            cookie.domain("vipsound.lmt.technology")
                         }
                     })
                     .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
