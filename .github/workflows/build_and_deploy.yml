@@ -30,7 +30,7 @@ jobs:
       - name: Deploy via Docker Compose
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            cd ${{ secrets.WORK_DIR }}  && \
+            cd ${{ secrets.WORK_DIR_DOCKER }}  && \
             docker-compose up -d --build --remove-orphans
           "
 
