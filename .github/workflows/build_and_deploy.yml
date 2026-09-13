@@ -27,23 +27,16 @@ jobs:
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.WORK_DIR_DOCKER }}/
 
-      - name: Deploy on server
+      - name: Deploy via Docker Compose
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            set -e
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            cd ${{ secrets.WORK_DIR }}  && \
+            docker-compose up -d --build --remove-orphans
+          "
 
-            cd ${{ secrets.WORK_DIR_DOCKER }}
-
-            docker compose down || true
-            docker compose up -d --build
-
-            docker ps
-          EOF
-
-      - name: Show containers
+      - name: Show containers status
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "docker ps"
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} && docker-compose ps"
 
-      - name: Cleanup SSH
-        if: always()
+      - name: Cleanup
         run: rm -rf ~/.ssh
