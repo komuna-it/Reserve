@@ -36,7 +36,7 @@ jobs:
 
       - name: Show containers status
         run: |
-          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} && docker-compose ps"
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR_DOCKER }} && docker-compose ps"
 
       - name: Cleanup
         run: rm -rf ~/.ssh
