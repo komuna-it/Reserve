@@ -31,7 +31,9 @@ class SecurityConfig(
         return http
             .csrf { csrf ->
                 csrf
-//                    .ignoringRequestMatchers("/auth/**")
+                    .ignoringRequestMatchers("/auth/**")
+                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
 //                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse().apply {
 //                        setCookieCustomizer { cookie ->
 //                            cookie.secure(true)
@@ -40,8 +42,6 @@ class SecurityConfig(
 //                            cookie.domain("vipsound.lmt.technology")
 //                        }
 //                    })
-                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                    .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
             }
             .exceptionHandling { exception ->
                 exception.accessDeniedHandler { request, response, ex ->
