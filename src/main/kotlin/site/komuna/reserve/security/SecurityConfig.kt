@@ -31,15 +31,16 @@ class SecurityConfig(
         return http
             .csrf { csrf ->
                 csrf
-                    .ignoringRequestMatchers("/auth/**")
-                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse().apply {
-                        setCookieCustomizer { cookie ->
-                            cookie.secure(true)
-                            cookie.sameSite("Lax")
-                            cookie.path("/")
-                            cookie.domain("vipsound.lmt.technology")
-                        }
-                    })
+//                    .ignoringRequestMatchers("/auth/**")
+//                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse().apply {
+//                        setCookieCustomizer { cookie ->
+//                            cookie.secure(true)
+//                            cookie.sameSite("Lax")
+//                            cookie.path("/")
+//                            cookie.domain("vipsound.lmt.technology")
+//                        }
+//                    })
+                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(SpaCsrfTokenRequestHandler())
             }
             .exceptionHandling { exception ->
@@ -67,7 +68,8 @@ class SecurityConfig(
                 }
             }
             .addFilterAfter(CsrfCookieFilter(), BasicAuthenticationFilter::class.java)
-            .cors {  }
+//            .cors {  }
+            .cors { it.disable() }
             .httpBasic { it.disable() }
             .formLogin { it.disable() }
             .authorizeHttpRequests {
@@ -92,23 +94,23 @@ class SecurityConfig(
             .build()
     }
 
-    @Bean
-    fun corsConfigurationSource(): CorsConfigurationSource {
-        val configuration = CorsConfiguration().apply {
-            allowedOriginPatterns = listOf(
-                "http://localhost:*",
-                "https://localhost:*",
-                "https://vipsound.lmt.technology"
-            )
-            allowedMethods = listOf("*")
-            allowedHeaders = listOf("*")
-            allowCredentials = true
-        }
-
-        val source = UrlBasedCorsConfigurationSource()
-        source.registerCorsConfiguration("/**", configuration)
-        return source
-    }
+//    @Bean
+//    fun corsConfigurationSource(): CorsConfigurationSource {
+//        val configuration = CorsConfiguration().apply {
+//            allowedOriginPatterns = listOf(
+//                "http://localhost:*",
+//                "https://localhost:*",
+//                "https://vipsound.lmt.technology"
+//            )
+//            allowedMethods = listOf("*")
+//            allowedHeaders = listOf("*")
+//            allowCredentials = true
+//        }
+//
+//        val source = UrlBasedCorsConfigurationSource()
+//        source.registerCorsConfiguration("/**", configuration)
+//        return source
+//    }
 
     @Bean
     fun passwordsEncoder(): PasswordEncoder {
