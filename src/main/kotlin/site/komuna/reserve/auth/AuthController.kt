@@ -74,7 +74,7 @@ class AuthController(
             .sameSite("Lax")
             .build()
 
-        val refreshEndpoint = "/auth/refresh"
+        val refreshEndpoint = "/"
         val refreshTokenCookie = ResponseCookie.from("refresh_token", loginData.refreshToken.token)
             .httpOnly(true)
             .secure(true)
