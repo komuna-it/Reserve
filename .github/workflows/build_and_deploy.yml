@@ -34,8 +34,10 @@ jobs:
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             cd ${{ secrets.WORK_DIR_DOCKER }}  && \
-            docker-compose up -d --build --remove-orphans
-          "
+            docker-compose stop app && \
+            docker-compose rm -f app && \
+            docker-compose up -d --build --remove-orphans app
+            "
 
       - name: Show containers status
         run: |
