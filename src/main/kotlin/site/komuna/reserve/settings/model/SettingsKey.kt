@@ -43,8 +43,8 @@ enum class SettingsKey(
         databaseOnly = true
     ),
     MAIL_SERVER_USERNAME(
-        defaultValue = "username@gmail.com",
-        validator = Regex("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$"),
+        defaultValue = "mail username",
+        validator = Regex(".*"),
         isSensitive = true,
         databaseOnly = true
     ),
@@ -57,6 +57,12 @@ enum class SettingsKey(
     MAIL_SMTP_AUTH(
         defaultValue = "true",
         validator = Regex("true|false"),
+        isSensitive = true,
+        databaseOnly = true
+    ),
+    MAIL_SERVER_SENT_FROM(
+        defaultValue = "username@gmail.com",
+        validator = Regex("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$"),
         isSensitive = true,
         databaseOnly = true
     ),

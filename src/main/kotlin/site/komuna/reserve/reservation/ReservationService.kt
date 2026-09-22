@@ -425,7 +425,7 @@ class ReservationService(
         val model = mutableMapOf<String, Any>()
         model["requestedBy"] = requestedBy
 
-        sendEmailAdmins(EmailTemplateType.RESERVATION_CANCEL_REQUESTED, reservation, model)
+        sendEmailManagers(EmailTemplateType.RESERVATION_CANCEL_REQUESTED, reservation, model)
     }
 
     private fun emitReservationCancelled(reservation: ReservationEntity, requestedBy: String) {
@@ -487,7 +487,7 @@ class ReservationService(
         }
     }
 
-    private fun sendEmailAdmins(type: EmailTemplateType, reservation: ReservationEntity, model: MutableMap<String, Any> = mutableMapOf<String, Any>()) {
+    private fun sendEmailManagers(type: EmailTemplateType, reservation: ReservationEntity, model: MutableMap<String, Any> = mutableMapOf<String, Any>()) {
         val startAt = reservation.startAt
         val endAt = reservation.endAt
         val duration = Duration.between(startAt, endAt)
@@ -497,8 +497,8 @@ class ReservationService(
         model["startAt"] = startAt.toLocalTime()
         model["endAt"] = endAt.toLocalTime()
 
-        userService.getAllAdmins().forEach { admin ->
-            val recipient = EmailRecipient(admin)
+        userService.getManagers().forEach { manager ->
+            val recipient = EmailRecipient(manager)
             emailService.sendEmailToUser(type, recipient, model)
         }
     }

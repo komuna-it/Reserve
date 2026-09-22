@@ -63,4 +63,10 @@ class SettingsController(
 
         return ResponseEntity.ok(settings)
     }
+
+    @PostMapping("/reload")
+    fun reloadSettings(): ResponseEntity<Void> {
+        service.initialize()
+        return ResponseEntity.ok().build()
+    }
 }

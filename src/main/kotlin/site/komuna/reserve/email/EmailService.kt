@@ -60,7 +60,7 @@ class EmailService(
      * Send an email using the JavaMailSender
      */
     private fun sendEmail(type: EmailTemplateType, recipient: EmailRecipient, model: MutableMap<String, Any>) {
-        val sentFrom = settings.getStringValue(MAIL_SERVER_USERNAME)
+        val sentFrom = settings.getStringValue(MAIL_SERVER_SENT_FROM)
         val sentTo = if(activeProfile != "prod") settings.getStringValue(SettingsKey.MAIL_SERVER_BETA_ADDRESS) else recipient.email
 
         try {

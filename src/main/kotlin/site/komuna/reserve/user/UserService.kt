@@ -272,6 +272,10 @@ class UserService(
             .map { convertToUserDto(it) }
     }
 
+    fun getManagers(): List<UserEntity> {
+        return repository.findByRole(Role.MANAGER)
+    }
+
     fun getAllAdmins(): List<UserEntity> {
         val admins = repository.findByRole(Role.ADMIN)
         val managers = repository.findByRole(Role.MANAGER)
