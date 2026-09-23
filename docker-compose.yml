@@ -1,9 +1,10 @@
 services:
-
-  app:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        REVISION: ${REVISION:-0.0.1-SNAPSHOT}
     container_name: reserve-api
     restart: unless-stopped
     ports:
@@ -15,6 +16,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reserve
       SPRING_DATASOURCE_USERNAME: reserve
       SPRING_DATASOURCE_PASSWORD: tYcqib-saqnos-nivvu0
+    networks:
+      - reserve_net
 
   postgres:
     image: postgres:16-alpine
@@ -34,8 +37,13 @@ services:
       start_period: 20s
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - reserve_net
+
 volumes:
   postgres_data:
 
-
-
+networks:
+  reserve_net:
+    name: reserve_net
+    driver: bridge
