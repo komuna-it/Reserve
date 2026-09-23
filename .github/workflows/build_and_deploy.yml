@@ -25,7 +25,6 @@ jobs:
       - name: Sync project to server
         run: |
           rsync -avz --delete \
-            --exclude ".git" \
             --exclude "target" \
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.WORK_DIR_DOCKER }}/

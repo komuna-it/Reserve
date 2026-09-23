@@ -75,9 +75,12 @@ class SecurityConfig(
             .authorizeHttpRequests {
                 it
                     .requestMatchers(
+                        "/error",
                         "/swagger-ui.html",
                         "/swagger-ui/**",
-                        "/v3/api-docs/**"
+                        "/v3/api-docs/**",
+                        "/actuator/**",
+                        "/api/actuator/**"
                     ).permitAll()
                     .requestMatchers(HttpMethod.GET, "/reservations/**").permitAll()
                     .requestMatchers("/auth/**").permitAll()
@@ -85,6 +88,8 @@ class SecurityConfig(
                     .requestMatchers("/sse").permitAll()
                     .requestMatchers("/users/forgotPassword").permitAll()
                     .requestMatchers("/policy/**").permitAll()
+                    .requestMatchers("/actuator/info", "/actuator/health")
+                    .permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(
