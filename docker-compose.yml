@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        REVISION: ${REVISION:-0.0.1-SNAPSHOT}
     container_name: reserve-api
     restart: unless-stopped
     ports:
