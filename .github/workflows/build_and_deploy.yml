@@ -33,14 +33,16 @@ jobs:
 
       - name: Deploy via Docker Compose
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-          docker network create reserve_net || true && \
-          cd ${{ secrets.WORK_DIR_DOCKER }} && \
-          REVISION=\$(git describe --tags --always) && \
-          REVISION=\$REVISION docker-compose stop api && \
-          REVISION=\$REVISION docker-compose rm -f api && \
-          REVISION=\$REVISION docker-compose up -d --build --remove-orphans api
-          "
+            # Calculate the version on the GitHub runner
+            REVISION=$(git describe --tags --always)
+            
+            ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            docker network create reserve_net || true && \
+            cd ${{ secrets.WORK_DIR_DOCKER }} && \
+            REVISION=${REVISION} docker-compose stop api && \
+            REVISION=${REVISION} docker-compose rm -f api && \
+            REVISION=${REVISION} docker-compose up -d --build --remove-orphans api
+            "
 
       - name: Show containers status
         run: |
