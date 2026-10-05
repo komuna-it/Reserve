@@ -461,8 +461,8 @@ class ReservationService(
 
         model["roomName"] = reservation.room.name
         model["duration"] = duration.toHoursPart()
-        model["startAt"] = startAt.toLocalTime()
-        model["endAt"] = endAt.toLocalTime()
+        model["startAt"] = startAt
+        model["endAt"] = endAt
 
         // Handle private reservation
         if(reservation.organization == null) {
@@ -494,8 +494,8 @@ class ReservationService(
 
         model["roomName"] = reservation.room.name
         model["duration"] = duration.toHoursPart()
-        model["startAt"] = startAt.toLocalTime()
-        model["endAt"] = endAt.toLocalTime()
+        model["startAt"] = startAt
+        model["endAt"] = endAt
 
         userService.getManagers().forEach { manager ->
             val recipient = EmailRecipient(manager)
