@@ -32,6 +32,7 @@ import site.komuna.reserve.user.UserService
 import site.komuna.reserve.user.model.UserEntity
 import java.time.Duration
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 
 
@@ -453,16 +454,18 @@ class ReservationService(
 
     // Sender
     private fun sendEmailUsers(privateTemplate: EmailTemplateType, organizationTemplate: EmailTemplateType, reservation: ReservationEntity, model: MutableMap<String, Any> = mutableMapOf<String, Any>()) {
+        val zoneId = ZoneId.of("Europe/Warsaw")
 
         val user = reservation.reservedBy
-        val startAt = reservation.startAt
-        val endAt = reservation.endAt
+        val startAt = reservation.startAt.atZoneSameInstant(zoneId).toLocalTime()
+        val endAt = reservation.endAt.atZoneSameInstant(zoneId).toLocalTime()
         val duration = Duration.between(startAt, endAt)
 
         model["roomName"] = reservation.room.name
         model["duration"] = duration.toHoursPart()
         model["startAt"] = startAt
         model["endAt"] = endAt
+
 
         // Handle private reservation
         if(reservation.organization == null) {
