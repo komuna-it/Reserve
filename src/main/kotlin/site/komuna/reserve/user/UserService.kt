@@ -24,6 +24,7 @@ import site.komuna.reserve.user.model.UserEntity
 import java.security.SecureRandom
 import java.time.Duration
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -136,12 +137,14 @@ class UserService(
 
     @Transactional
     fun banUser(id: Long, by: Long, reason: String, duration: Duration): BanEntity {
+        val zoneId = ZoneId.of("Europe/Warsaw")
+
         val user = findById(id)
         val bannedBy = findById(by)
 
         val expires = OffsetDateTime.now(ZoneOffset.UTC) + duration
         val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy HH:mm", Locale.of("pl", "PL"))
-        val formattedExpires = expires.format(formatter)
+        val formattedExpires = expires.atZoneSameInstant(zoneId).format(formatter)
 
         refreshTokenService.revokeAllTokensForUser(user)
 
