@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
@@ -66,49 +65,55 @@ class AuthController(
         val userDto = userService.convertToUserDto(userEntity)
         userDto.accessTokenExpiresAt = Instant.now().plus(accessTokenDuration).toEpochMilli()
 
-        val accessTokenCookie = ResponseCookie.from("access_token", loginData.accessToken.token)
-            .httpOnly(true)
-            .secure(true)
-            .path("/")
-            .maxAge(accessTokenDuration)
-            .sameSite("Lax")
-            .build()
+        response.addHeader(
+            HttpHeaders.SET_COOKIE,
+            service.createTokenCookie(
+                "access_token",
+                loginData.accessToken.token,
+                accessTokenDuration
+            ).toString()
+        )
 
-        val refreshEndpoint = "/"
-        val refreshTokenCookie = ResponseCookie.from("refresh_token", loginData.refreshToken.token)
-            .httpOnly(true)
-            .secure(true)
-            .path(refreshEndpoint)
-            .maxAge(refreshTokenDuration)
-            .sameSite("Lax")
-            .build()
-
-        response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
-        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
-
+        response.addHeader(
+            HttpHeaders.SET_COOKIE,
+            service.createTokenCookie(
+                "refresh_token",
+                loginData.refreshToken.token,
+                refreshTokenDuration
+            ).toString()
+        )
         return ResponseEntity.ok(userDto)
     }
 
     @PostMapping("/refresh")
     fun getAccessToken(
-        @CookieValue("refresh_token") refreshToken: String,
+        @CookieValue("refresh_token", required = false) refreshToken: String?,
         response: HttpServletResponse
     ): ResponseEntity<Map<String, Long>> {
+
+        if (refreshToken.isNullOrBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        }
+
         val newAccessToken = service.refresh(refreshToken)
 
-        val accessTokenCookie = ResponseCookie.from("access_token", newAccessToken.token)
-            .httpOnly(true)
-            .secure(true)
-            .path("/")
-            .maxAge(accessTokenDuration)
-            .sameSite("Lax")
-            .build()
+        response.addHeader(
+            HttpHeaders.SET_COOKIE,
+            service.createTokenCookie(
+                "access_token",
+                newAccessToken.token,
+                accessTokenDuration
+            ).toString()
+        )
 
-        logger.info { "New access token: ${newAccessToken.token}" }
+        val newExpiresAt = Instant.now()
+            .plus(accessTokenDuration)
+            .toEpochMilli()
 
-        response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
-        val newExpiresAt = Instant.now().plus(accessTokenDuration).toEpochMilli()
-        return ResponseEntity.ok(mapOf("accessTokenExpiresAt" to newExpiresAt))    }
+        return ResponseEntity.ok(
+            mapOf("accessTokenExpiresAt" to newExpiresAt)
+        )
+    }
 
     @GetMapping("/confirmEmail/{verificationToken}")
     fun confirmEmail(@PathVariable verificationToken: String): ResponseEntity<Void> {
@@ -117,12 +122,19 @@ class AuthController(
     }
 
     @GetMapping("/me")
-    fun getCurrentUser(authentication: Authentication?, @CookieValue("access_token", required = false) accessToken: String?): ResponseEntity<UserDto> {
-        logger.trace { "/auth/me authentication: $authentication" }
-        logger.trace { "Received a request to get current user" }
+    fun getCurrentUser(
+        authentication: Authentication?,
+        @CookieValue("access_token", required = false) accessToken: String?,
+        @CookieValue("refresh_token", required = false) refreshToken: String?
+    ): ResponseEntity<UserDto?> {
 
-        if (authentication == null) {
-            logger.trace { "authentication == null" }
+        if (authentication == null || !authentication.isAuthenticated) {
+            // no refresh token --  anonymous session.
+            if (refreshToken.isNullOrBlank()) {
+                return ResponseEntity.ok(null)
+            }
+
+            //  refresh token exists, so the frontend can attempt restoration
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
 
@@ -131,23 +143,29 @@ class AuthController(
             val userDto = userService.convertToUserDto(userEntity)
 
             if (accessToken != null) {
-                userDto.accessTokenExpiresAt = accessTokenService.getExpirationMillis(accessToken)            }
+                userDto.accessTokenExpiresAt =
+                    accessTokenService.getExpirationMillis(accessToken)
+            }
+
             ResponseEntity.ok(userDto)
 
-
         } catch (e: IllegalStateException) {
-            logger.error { "IllegalStateException $e" }
             ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
     }
 
     @PostMapping("/logout")
     fun logout(response: HttpServletResponse): ResponseEntity<Void> {
-        val cleanAccess = ResponseCookie.from("access_token", "").httpOnly(true).path("/").maxAge(0).build()
-        val cleanRefresh = ResponseCookie.from("refresh_token", "").httpOnly(true).path("/auth/refresh").maxAge(0).build()
 
-        response.addHeader(HttpHeaders.SET_COOKIE, cleanAccess.toString())
-        response.addHeader(HttpHeaders.SET_COOKIE, cleanRefresh.toString())
+        response.addHeader(
+            HttpHeaders.SET_COOKIE,
+            service.createTokenCookie("access_token", "", Duration.ZERO).toString()
+        )
+
+        response.addHeader(
+            HttpHeaders.SET_COOKIE,
+            service.createTokenCookie("refresh_token", "", Duration.ZERO).toString()
+        )
         return ResponseEntity.ok().build()
     }
 }

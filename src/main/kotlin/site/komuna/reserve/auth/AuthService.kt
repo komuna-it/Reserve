@@ -1,5 +1,6 @@
 package site.komuna.reserve.auth
 
+import org.springframework.http.ResponseCookie
 import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -91,5 +92,19 @@ class AuthService (
         val userEntity = userService.findById(id as Long)
 
         return userEntity
+    }
+
+    fun createTokenCookie(
+        name: String,
+        value: String,
+        duration: java.time.Duration
+    ): ResponseCookie {
+        return ResponseCookie.from(name, value)
+            .httpOnly(true)
+            .secure(true)
+            .sameSite("Lax")
+            .path("/")
+            .maxAge(duration)
+            .build()
     }
 }
