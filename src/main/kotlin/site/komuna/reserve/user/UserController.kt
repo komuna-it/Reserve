@@ -145,4 +145,10 @@ class UserController(
             """)
 
     }
+
+    @GetMapping("/calendar")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun getCalendarUsers(): ResponseEntity<List<UserDto>> {
+        return ResponseEntity.ok(service.getCalendarUsers())
+    }
 }

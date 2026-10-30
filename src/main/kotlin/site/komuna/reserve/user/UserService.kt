@@ -318,4 +318,10 @@ class UserService(
 
         return BanDto(ban, userDto, bannedByDto)
     }
+
+    fun getCalendarUsers(): List<UserDto> {
+        return repository.findAll().map {
+            convertToUserDto(it)
+        }
+    }
 }
