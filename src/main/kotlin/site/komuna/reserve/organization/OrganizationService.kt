@@ -235,7 +235,23 @@ class OrganizationService(
         return repository.findById(id).orElseThrow { OrganizationNotFoundException(id) }
     }
 
-    fun getAllOrganizationsForUser(userId: Long): List<OrganizationEntity> {
-        return organizationMemberService.getAllOrganizationsForUser(userId)
+    fun getAllOrganizations(): Page<OrganizationDto> {
+        val size = repository.count()
+            .coerceAtLeast(1)
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+
+        return repository.findAll(
+            PageRequest.of(0, size, Sort.by("name"))
+        ).map { org ->
+            OrganizationDto(
+                org,
+                organizationMemberService.getMembersOfOrganization(org.id!!)
+                    .map { OrganizationMemberDto(it) },
+                organizationMemberService.getOwnersOfOrganization(org.id!!)
+                    .map { OrganizationMemberDto(it) }
+            )
+        }
     }
+
 }

@@ -16,7 +16,6 @@ import site.komuna.reserve.organization.model.OrganizationDto
 import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.organization.model.UpdateTrustedOrganizationStatusRequest
 import site.komuna.reserve.organization.organizationMember.model.OrganizationMemberDto
-import site.komuna.reserve.user.UserService
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
@@ -24,7 +23,6 @@ import java.time.ZoneOffset
 @RequestMapping("/organizations")
 class OrganizationController(
     private val service: OrganizationService,
-    private val userService: UserService
 ) {
 
     companion object {
@@ -168,4 +166,8 @@ class OrganizationController(
 
         return ResponseEntity.ok(organizations)
     }
+
+    @GetMapping("/all")
+    fun getAllOrganizations(): PageResponse<OrganizationDto> =
+        service.getAllOrganizations().toPageResponse()
 }
