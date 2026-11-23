@@ -351,7 +351,12 @@ class ReservationService(
     }
 
     fun prepareCreateRequest(request: CreateReservationRequest, currentUser: UserEntity) {
-        val targetUserId: Long = if (currentUser.role == Role.ADMIN && request.reservedByUserId != null) {
+        val canReserveForOthers = currentUser.role in setOf(
+            Role.ADMIN,
+            Role.MANAGER
+        )
+
+        val targetUserId = if (canReserveForOthers && request.reservedByUserId != null) {
             request.reservedByUserId!!
         } else {
             currentUser.id!!

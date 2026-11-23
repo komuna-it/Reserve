@@ -30,15 +30,20 @@ class CreateReservationValidation(
             val organization = request.organization!!
             val targetUser = request.reservedByUser!!
 
-            if (currentUser.role != Role.ADMIN) {
-                val isMember = organizationMemberService.isMember(targetUser.id!!, organization.id!!)
-                val isOwner = organizationService.isOwner(targetUser, organization)
+            val isMember = organizationMemberService.isMember(
+                targetUser.id!!,
+                organization.id!!
+            )
 
-                if (!isMember && !isOwner) {
-                    throw CannotPerformThatActionException(
-                        "User with id ${targetUser.id} is not an owner/member of organization ${organization.name}"
-                    )
-                }
+            val isOwner = organizationService.isOwner(
+                targetUser,
+                organization
+            )
+
+            if (!isMember && !isOwner) {
+                throw CannotPerformThatActionException(
+                    "User with id ${targetUser.id} is not an owner/member of organization ${organization.name}"
+                )
             }
         }
 
