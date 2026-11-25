@@ -23,4 +23,4 @@ COPY --from=builder /app/target/reserve-*.jar app.jar
 
 EXPOSE 6902
 
-ENTRYPOINT ["java","-jar","app.jar", "--spring.profiles.active=prod"]
+ENTRYPOINT ["java","-jar","app.jar"]
