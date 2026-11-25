@@ -33,3 +33,5 @@ build/
 .vscode/
 
 src/main/resources/local-dev.p12
+
+.env

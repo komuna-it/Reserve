@@ -21,6 +21,6 @@ WORKDIR /app
 
 COPY --from=builder /app/target/reserve-*.jar app.jar
 
-EXPOSE 6902
+EXPOSE 8443
 
 ENTRYPOINT ["java","-jar","app.jar"]

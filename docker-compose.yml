@@ -5,19 +5,25 @@ services:
       dockerfile: Dockerfile
       args:
         REVISION: ${REVISION:-0.0.1-SNAPSHOT}
+
     container_name: reserve-api
     restart: unless-stopped
+
     ports:
       - "8443:8443"
+
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
+
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reserve
-      SPRING_DATASOURCE_USERNAME: reserve
-      SPRING_DATASOURCE_PASSWORD: tYcqib-saqnos-nivvu0
-      JAVA_TOOL_OPTIONS: "-XX:+UnlockDiagnosticVMOptions -XX:-UseBASE64Intrinsics"
       SPRING_PROFILES_ACTIVE: beta
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?Database URL is required}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?Database username is required}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Database password is required}
+      RESERVE_TOKENS_SECRET: ${RESERVE_TOKENS_SECRET:?Token secret is required}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:+UnlockDiagnosticVMOptions -XX:-UseBASE64Intrinsics}
+
     networks:
       - reserve_net
 
@@ -25,20 +31,25 @@ services:
     image: postgres:16-alpine
     container_name: reserve-database
     restart: unless-stopped
+
     environment:
-      POSTGRES_DB: reserve
-      POSTGRES_USER: reserve
-      POSTGRES_PASSWORD: tYcqib-saqnos-nivvu0
+      POSTGRES_DB: ${POSTGRES_DB:?Database name is required}
+      POSTGRES_USER: ${POSTGRES_USER:?Database user is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password is required}
+
     ports:
       - "5432:5432"
+
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U reserve -d reserve" ]
+      test: ["CMD-SHELL", "pg_isready -U reserve -d reserve"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 20s
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
     networks:
       - reserve_net
 

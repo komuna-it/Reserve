@@ -28,20 +28,23 @@ jobs:
         run: |
           rsync -avz --delete \
             --exclude "target" \
+            --exclude ".git" \
+            --exclude ".env" \
+            --exclude ".env.*" \
+            --exclude "postgres_data" \
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.WORK_DIR_DOCKER }}/
 
       - name: Deploy via Docker Compose
         run: |
-            REVISION=$(git describe --tags --always)
-            
-            ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            docker network create reserve_net || true && \
-            cd ${{ secrets.WORK_DIR_DOCKER }} && \
-            REVISION=${REVISION} docker-compose stop api && \
-            REVISION=${REVISION} docker-compose rm -f api && \
-            REVISION=${REVISION} docker-compose -f docker-compose.prod.yml up -d --build --remove-orphans api
-            "
+          REVISION=$(git describe --tags --always)
+          
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            docker network create reserve_net || true &&
+            cd ${{ secrets.WORK_DIR_DOCKER }} &&
+            REVISION=${REVISION} docker compose -f docker-compose.prod.yml  --env-file .env \
+              up -d --build --remove-orphans api
+          "
 
       - name: Show containers status
         run: |
