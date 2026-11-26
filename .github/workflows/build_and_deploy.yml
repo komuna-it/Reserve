@@ -48,7 +48,13 @@ jobs:
 
       - name: Show containers status
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR_DOCKER }} && docker-compose ps"
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            cd ${{ secrets.WORK_DIR_DOCKER }} &&
+            docker compose \
+              -f docker-compose.prod.yml \
+              --env-file /opt/reserve/.env \
+              ps
+          "
 
       - name: Cleanup
         run: rm -rf ~/.ssh
