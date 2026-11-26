@@ -10,6 +10,8 @@ import org.springframework.data.jpa.domain.Specification
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import site.komuna.reserve.audit.AuditService
+import site.komuna.reserve.audit.model.AuditType
 import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.httpError.exception.ReservationNotFoundException
 import site.komuna.reserve.email.EmailService
@@ -54,6 +56,7 @@ class ReservationService(
     private val emailService: EmailService,
     private val pricingService: PricingService,
     private val organizationMemberService: OrganizationMemberService,
+    private val auditService: AuditService,
 ) {
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -190,6 +193,7 @@ fun specification(filter: SearchReservationsFilter) =
         return repository.findById(id).orElseThrow { ReservationNotFoundException(id) }
     }
 
+    @Transactional
     fun createReservation(request: CreateReservationRequest, currentUser: UserEntity): ReservationEntity {
         prepareCreateRequest(request, currentUser)
         validate(request, currentUser)
@@ -207,6 +211,18 @@ fun specification(filter: SearchReservationsFilter) =
         else {
             emitCreatedReservation(response)
         }
+
+        auditService.log(
+            type = AuditType.RESERVATION_CREATED,
+            actor = currentUser,
+            properties = mapOf(
+                "reservationId" to response.id,
+                "userId" to response.user.id,
+                "roomId" to response.room.id,
+                "organizationId" to response.organization?.id,
+                "status" to response.status
+            )
+        )
 
         return response
     }
@@ -236,15 +252,27 @@ fun specification(filter: SearchReservationsFilter) =
         return response
     }
 
-    fun confirmReservation(reservation: ReservationEntity, approvedBy: UserEntity): ReservationEntity{
-        if (reservation.status != ReservationStatus.CREATED && (approvedBy.role== Role.MANAGER || approvedBy.role== Role.ADMIN)){
-            throw CannotPerformThatActionException("Reservation is not in CREATED status")
+    fun confirmReservation(
+        reservation: ReservationEntity,
+        approvedBy: UserEntity
+    ): ReservationEntity {
+
+        if (reservation.status != ReservationStatus.CREATED) {
+            throw CannotPerformThatActionException(
+                "Reservation is not in CREATED status"
+            )
         }
 
-        // Save details
-        confirmReservationService.saveConfirmReservationDetails(reservation, approvedBy)
+        confirmReservationService.saveConfirmReservationDetails(
+            reservation,
+            approvedBy
+        )
 
-        return changeStatus(reservation, ReservationStatus.CONFIRMED)
+        return changeStatus(
+            reservation,
+            ReservationStatus.CONFIRMED,
+            approvedBy
+        )
     }
 
     fun confirmReservation(reservationId: Long, approvedBy: Long): ReservationEntity {
@@ -254,19 +282,34 @@ fun specification(filter: SearchReservationsFilter) =
         val response = confirmReservation(reservation, user)
 
         emitReservationApproved(response)
+
         return response
     }
 
-    fun rejectReservationRequest(reservation: ReservationEntity, rejectedBy: UserEntity): ReservationEntity {
-        if (reservation.status == ReservationStatus.REJECTED || reservation.status == ReservationStatus.CANCELLED) {
-            throw CannotPerformThatActionException("Current status of reservation: ${reservation.status} can not request rejection")
+    fun rejectReservationRequest(
+        reservation: ReservationEntity,
+        rejectedBy: UserEntity
+    ): ReservationEntity {
+        if (
+            reservation.status == ReservationStatus.REJECTED ||
+            reservation.status == ReservationStatus.CANCELLED
+        ) {
+            throw CannotPerformThatActionException(
+                "Current status of reservation: ${reservation.status} cannot request rejection"
+            )
         }
 
-        confirmReservationService.saveRejectReservationDetails(reservation, rejectedBy)
+        confirmReservationService.saveRejectReservationDetails(
+            reservation,
+            rejectedBy
+        )
 
-        val response = changeStatus(reservation, ReservationStatus.REJECTED)
+        val response = changeStatus(
+            reservation,
+            ReservationStatus.REJECTED,
+            rejectedBy
+        )
 
-        // TODO:
         emitReservationRejected(response)
 
         return response
@@ -276,14 +319,18 @@ fun specification(filter: SearchReservationsFilter) =
         val user = userService.findById(rejectedBy)
         val reservation = findById(reservationId)
 
+
         return rejectReservationRequest(reservation, user)
     }
 
-    fun requestCancelReservation(reservationId: Long, cancelledBy: Long): ReservationEntity {
+    fun requestCancelReservation(
+        reservationId: Long,
+        cancelledBy: Long
+    ): ReservationEntity {
         val reservation = findById(reservationId)
-        val cancelledByUser = userService.findById(cancelledBy)
+        val user = userService.findById(cancelledBy)
 
-        return requestCancelReservation(reservation, cancelledByUser)
+        return requestCancelReservation(reservation, user)
     }
 
     fun requestCancelReservation(reservation: ReservationEntity, cancelledByUser: UserEntity): ReservationEntity {
@@ -308,7 +355,7 @@ fun specification(filter: SearchReservationsFilter) =
         val allowedHour = settings.getIntValue(SettingsKey.RESERVATION_CANCELLATION_WITHOUT_APPROVAL_HOURS)
 
         if(time.toHours() > allowedHour) {
-            val response = cancelReservationBySystem(reservation, cancelledByUser, canceledAt)
+            val response = cancelReservationBySystem(reservation, cancelledByUser, canceledAt   )
 
             emitReservationCancelled(response, canceledBy)
             return response
@@ -320,6 +367,26 @@ fun specification(filter: SearchReservationsFilter) =
         return response
     }
 
+    fun saveCancellationRequest(
+        reservation: ReservationEntity,
+        cancelledBy: UserEntity,
+        canceledAt: OffsetDateTime
+    ): ReservationEntity {
+        cancelReservationService.saveCancelReservationDetails(
+            reservation,
+            cancelledBy,
+            canceledAt,
+            null,
+            null
+        )
+
+        return changeStatus(
+            reservation,
+            ReservationStatus.REQUESTED_CANCELLATION,
+            cancelledBy
+        )
+    }
+
     fun cancelReservationBySystem(reservation: ReservationEntity, canceledBy: UserEntity, canceledAt: OffsetDateTime): ReservationEntity {
         val systemUser = userService.getSystemUser()
         cancelReservationService.saveCancelReservationDetails(reservation,
@@ -328,23 +395,17 @@ fun specification(filter: SearchReservationsFilter) =
             systemUser,
             canceledAt)
 
-        val response = changeStatus(reservation, ReservationStatus.CANCELLED)
+        val response = changeStatus(reservation, ReservationStatus.CANCELLED, systemUser)
         sendEmailUsers(EmailTemplateType.RESERVATION_CANCELED_PRIVATE, EmailTemplateType.RESERVATION_CANCELED_ORGANIZATION, response)
 
         return response
     }
 
-    fun saveCancellationRequest(reservation: ReservationEntity, cancelledBy: UserEntity, canceledAt: OffsetDateTime): ReservationEntity {
-        cancelReservationService.saveCancelReservationDetails(reservation,
-            cancelledBy,
-            canceledAt, null, null)
-
-        return changeStatus(reservation, ReservationStatus.REQUESTED_CANCELLATION)
-    }
-
     fun confirmCancelReservation(reservationId: Long, approvedBy: Long): ReservationEntity {
         val reservation = findById(reservationId)
         val approvedByUser = userService.findById(approvedBy)
+
+
 
         return confirmCancelReservation(reservation, approvedByUser)
     }
@@ -355,11 +416,12 @@ fun specification(filter: SearchReservationsFilter) =
         }
 
         cancelReservationService.updateCancelReservationDetails(reservation, approvedBy)
-        val response = changeStatus(reservation, ReservationStatus.CANCELLED)
+        val response = changeStatus(reservation, ReservationStatus.CANCELLED, approvedBy)
 
         val requestedBy = cancelReservationService.findByReservationId(reservation.id!!).requestedBy.nick
 
         emitReservationCancelled(response, requestedBy)
+
         return response
     }
 
@@ -376,9 +438,10 @@ fun specification(filter: SearchReservationsFilter) =
         }
 
         cancelReservationService.updateCancelReservationDetails(reservation, approvedBy)
-        val response = changeStatus(reservation, ReservationStatus.REJECTED_CANCELLATION)
+        val response = changeStatus(reservation, ReservationStatus.REJECTED_CANCELLATION, approvedBy)
 
         emitReservationRejected(response)
+
         return response
     }
 
@@ -411,14 +474,43 @@ fun specification(filter: SearchReservationsFilter) =
         }
     }
 
-    fun setPaid(reservationId: Long, paid: Boolean, changedBy: Long): ReservationEntity {
+    fun setPaid(
+        reservationId: Long,
+        paid: Boolean,
+        changedBy: Long
+    ): ReservationEntity {
         val reservation = findById(reservationId)
-        return setPaid(reservation, paid, changedBy)
+        val actor = userService.findById(changedBy)
+
+        return setPaid(reservation, paid, actor)
     }
 
-    fun setPaid(reservation: ReservationEntity, paid: Boolean, changedBy: Long): ReservationEntity {
+    private fun setPaid(
+        reservation: ReservationEntity,
+        paid: Boolean,
+        actor: UserEntity
+    ): ReservationEntity {
+        val previousPaid = reservation.paid
+
+        if (previousPaid == paid) {
+            return reservation
+        }
+
         reservation.paid = paid
-        return repository.save(reservation)
+
+        val updatedReservation = repository.save(reservation)
+
+        auditService.log(
+            type = AuditType.RESERVATION_PAID_UPDATED,
+            actor = actor,
+            properties = mapOf(
+                "reservationId" to updatedReservation.id,
+                "previousPaid" to previousPaid,
+                "newPaid" to paid
+            )
+        )
+
+        return updatedReservation
     }
 
     fun validate(request: CreateReservationRequest, currentUser: UserEntity) {
@@ -426,10 +518,39 @@ fun specification(filter: SearchReservationsFilter) =
         validator.validate(request, currentUser)
     }
 
-    fun changeStatus(reservation: ReservationEntity, status: ReservationStatus): ReservationEntity {
-        logger.trace { "Changing reservation ${reservation.id} status from ${reservation.status} to $status" }
-        reservation.status = status
-        return repository.save(reservation)
+    fun changeStatus(
+        reservation: ReservationEntity,
+        newStatus: ReservationStatus,
+        actor: UserEntity
+    ): ReservationEntity {
+        val previousStatus = reservation.status
+
+        if (previousStatus == newStatus) {
+            return reservation
+        }
+
+        logger.trace {
+            "Changing reservation ${reservation.id} status from $previousStatus to $newStatus"
+        }
+
+        reservation.status = newStatus
+
+        val updatedReservation = repository.save(reservation)
+
+        auditService.log(
+            type = AuditType.RESERVATION_STATUS_UPDATED,
+            actor = actor,
+            properties = mapOf(
+                "reservationId" to updatedReservation.id,
+                "previousStatus" to previousStatus.name,
+                "newStatus" to newStatus.name,
+                "userId" to updatedReservation.user.id,
+                "roomId" to updatedReservation.room.id,
+                "organizationId" to updatedReservation.organization?.id
+            )
+        )
+
+        return updatedReservation
     }
 
     fun getReservationDto(reservation: ReservationEntity): ReservationDto {
@@ -510,6 +631,17 @@ fun specification(filter: SearchReservationsFilter) =
             val recipient = EmailRecipient(user)
 
             emailService.sendEmailToUser(privateTemplate, recipient, model)
+
+            auditService.log(
+                type = AuditType.EMAIL_SENT_TO_USERS,
+                actor = null,
+                properties = mapOf(
+                    "reservationId" to reservation.id,
+                    "emailType" to privateTemplate.name,
+                    "recipientUserIds" to listOfNotNull(user.id),
+                    "recipientCount" to 1
+                )
+            )
         }
         // Handle organization reservation
         else {
@@ -525,11 +657,32 @@ fun specification(filter: SearchReservationsFilter) =
             model["organizationName"] = organization.name
 
             emailService.sendEmailToUsers(organizationTemplate, recipients, model)
+
+            auditService.log(
+                type = AuditType.EMAIL_SENT_TO_USERS,
+                actor = null,
+                properties = mapOf(
+                    "reservationId" to reservation.id,
+                    "emailType" to organizationTemplate.name,
+                    "organizationId" to organization.id,
+                    "recipientUserIds" to members.mapNotNull { it.id },
+                    "recipientCount" to recipients.size ,
+                )
+            )
         }
+
+
     }
 
-    private fun sendEmailManagers(type: EmailTemplateType, reservation: ReservationEntity, model: MutableMap<String, Any> = mutableMapOf<String, Any>()) {
-        val formatter = DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.of("pl", "PL"))
+    private fun sendEmailManagers(
+        type: EmailTemplateType,
+        reservation: ReservationEntity,
+        model: MutableMap<String, Any> = mutableMapOf()
+    ) {
+        val formatter = DateTimeFormatter.ofPattern(
+            "d MMM HH:mm",
+            Locale.of("pl", "PL")
+        )
         val zoneId = ZoneId.of("Europe/Warsaw")
 
         val startAt = reservation.startAt.atZoneSameInstant(zoneId)
@@ -541,10 +694,26 @@ fun specification(filter: SearchReservationsFilter) =
         model["startAt"] = startAt.format(formatter)
         model["endAt"] = endAt.format(formatter)
 
-        userService.getManagers().forEach { manager ->
-            val recipient = EmailRecipient(manager)
+        val managers = userService.getManagers()
+
+        val recipients = managers.map { manager ->
+            EmailRecipient(manager)
+        }
+
+        recipients.forEach { recipient ->
             emailService.sendEmailToUser(type, recipient, model)
         }
+
+        auditService.log(
+            type = AuditType.EMAIL_SENT_TO_MANAGERS,
+            actor = null,
+            properties = mapOf(
+                "reservationId" to reservation.id,
+                "emailType" to type.name,
+                "recipientUserIds" to managers.mapNotNull { it.id },
+                "recipientCount" to recipients.size
+            )
+        )
     }
 
     fun getReservationSummary(): Map<ReservationStatus, Long> {
