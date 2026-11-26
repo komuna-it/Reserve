@@ -11,9 +11,11 @@ COPY pom.xml .
 RUN chmod +x mvnw && ./mvnw -B dependency:go-offline
 
 COPY src ./src
-COPY .git .git
 
-RUN ./mvnw -B clean package -DskipTests -Drevision=${REVISION}
+RUN ./mvnw -B clean package \
+    -DskipTests \
+    -Drevision=${REVISION} \
+    -Dgit.commit.skip=true
 
 FROM eclipse-temurin:25-jdk
 

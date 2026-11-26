@@ -28,6 +28,7 @@
 	</scm>
 	<properties>
 		<revision>0.0.1-SNAPSHOT</revision>
+		<git.commit.skip>false</git.commit.skip>
 		<java.version>25</java.version>
 		<kotlin.version>2.4.10</kotlin.version>
 	</properties>
@@ -153,6 +154,8 @@
 					</execution>
 				</executions>
 				<configuration>
+					<skip>${git.commit.skip}</skip>
+
 					<generateGitPropertiesFile>true</generateGitPropertiesFile>
 					<generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
 					<commitIdGenerationMode>flat</commitIdGenerationMode>
