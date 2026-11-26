@@ -200,10 +200,18 @@ fun specification(filter: SearchReservationsFilter) =
 
         var response = repository.save(ReservationEntity(request))
 
-        if (currentUser.role == Role.ADMIN || currentUser.role == Role.MANAGER) {
-            response = confirmReservationBySystem(response)
+        response = when (currentUser.role) {
+            Role.ADMIN, Role.MANAGER -> {
+                // Admin/manager confirms the reservation they create.
+                confirmReservation(response, currentUser)
+            }
+
+            else -> {
+                // Regular users may have their reservations auto-confirmed
+                // when they or their organization are trusted.
+                confirmReservationIfTrusted(response)
+            }
         }
-        response = confirmReservationIfTrusted(response)
 
         if (response.status == ReservationStatus.CONFIRMED) {
             emitReservationApproved(response)
@@ -753,6 +761,7 @@ fun specification(filter: SearchReservationsFilter) =
                 roomId = roomId,
                 startAtAfter = startAtAfter,
                 startAtBefore = startAtBefore,
+                status = visibleStatuses.toMutableList()
             )
 
             // Regular users can see their private reservations
@@ -768,8 +777,6 @@ fun specification(filter: SearchReservationsFilter) =
 
                 SearchReservationsFilter(
                     roomId = roomId,
-                    userId = userId,
-                    organizationsId = organizationIds,
                     startAtAfter = startAtAfter,
                     startAtBefore = startAtBefore,
                     status = visibleStatuses.toMutableList()
