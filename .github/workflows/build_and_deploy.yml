@@ -42,7 +42,7 @@ jobs:
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
             docker network create reserve_net || true &&
             cd ${{ secrets.WORK_DIR_DOCKER }} &&
-            REVISION=${REVISION} docker compose -f docker-compose.prod.yml  --env-file .env \
+            REVISION=${REVISION} docker compose -f docker-compose.prod.yml  --env-file /opt/reserve/.env \
               up -d --build --remove-orphans api
           "
 
