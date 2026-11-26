@@ -29,7 +29,7 @@ class ReservationController(
     fun searchReservations(
         @RequestParam(required = false) reservationId: Long?,
         @RequestParam(required = false) userId: Long?,
-        @RequestParam(required = false) reservedBy: Long?,
+        @RequestParam(required = false) actorUserId: Long?,
         @RequestParam(required = false) organizationsId: List<Long>?,
         @RequestParam(defaultValue = "false") future: Boolean,
         @RequestParam(required = false) privateReservation: Boolean?,
@@ -44,7 +44,7 @@ class ReservationController(
         val filter = SearchReservationsFilter(
             reservationId = reservationId,
             userId = userId,
-            reservedBy = reservedBy,
+            actorUserId = actorUserId,
             organizationsId = organizationsId?.toMutableList() ?: mutableListOf(),
             future = future,
             private = privateReservation,
@@ -56,6 +56,31 @@ class ReservationController(
         )
 
         return service.getReservations(filter, pageable).map { service.getReservationDto(it) }
+    }
+
+    @GetMapping("/calendar")
+    fun getCalendarReservations(
+        @RequestParam startAtAfter: OffsetDateTime,
+        @RequestParam startAtBefore: OffsetDateTime,
+        @RequestParam(required = false) roomId: Long?,
+        @PageableDefault(
+            size = 250,
+            sort = ["startAt"],
+            direction = Sort.Direction.ASC
+        ) pageable: Pageable,
+        authentication: Authentication?
+    ): Page<ReservationDto> {
+
+        val page = service.getCalendarReservations(
+            startAtAfter,
+            startAtBefore,
+            roomId,
+            pageable,
+            authentication
+        )
+
+        return page
+
     }
 
     @PostMapping("")

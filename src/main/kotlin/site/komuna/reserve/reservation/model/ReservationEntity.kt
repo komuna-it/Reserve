@@ -26,36 +26,42 @@ class ReservationEntity(
     var type: ReservationType,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id", nullable = true)
-    // Null in organization means that the reservation is private
+    @JoinColumn(name = "organization_id")
     var organization: OrganizationEntity?,
 
+    // User for whom the reservation was created
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reserved_by_user_id", nullable = false)
-    var reservedBy: UserEntity,
-    var reservedAt: OffsetDateTime,
+    @JoinColumn(name = "user_id", nullable = false)
+    var user: UserEntity,
 
+    var reservedAt: OffsetDateTime,
     var startAt: OffsetDateTime,
     var endAt: OffsetDateTime,
 
     var paid: Boolean = false,
 
-    @Formula("COALESCE((SELECT o.name FROM organizations o WHERE o.id = organization_id), (SELECT u.nick FROM users u WHERE u.id = reserved_by_user_id))")
-    var r: String? = null // string wyciągający nazwę zespołu lub nazwę usera, jeśli to prywatna rezerwacja (dla sortowania z fronta)
-) {
+    @Formula(
+        """
+        COALESCE(
+            (SELECT o.name FROM organizations o WHERE o.id = organization_id),
+            (SELECT u.nick FROM users u WHERE u.id = user_id)
+        )
+        """
+    )
+    var r: String? = null,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_id", nullable = false)
+    var actor: UserEntity,
+) {
     constructor(request: CreateReservationRequest) : this(
-        id = null,
-        room = request.room!!,
+        room = requireNotNull(request.room),
         type = ReservationType.from(request.type),
         organization = request.organization,
-        reservedBy = request.reservedByUser!!,
-        reservedAt = request.reservedAt!!,
+        user = requireNotNull(request.user),
+        reservedAt = requireNotNull(request.reservedAt),
         startAt = request.startAt,
-        endAt = request.endAt!!,
-    ) {
-        if(reservedBy.role == Role.ADMIN) {
-            status = ReservationStatus.CONFIRMED
-        }
-    }
+        endAt = requireNotNull(request.endAt),
+        actor = requireNotNull(request.actor),
+    )
 }

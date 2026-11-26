@@ -7,7 +7,6 @@ import site.komuna.reserve.reservation.ReservationRepository
 import site.komuna.reserve.reservation.model.CreateReservationRequest
 import site.komuna.reserve.settings.SettingsService
 import site.komuna.reserve.settings.model.SettingsKey
-import site.komuna.reserve.user.Role
 import site.komuna.reserve.user.model.UserEntity
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -28,7 +27,7 @@ class CreateReservationValidation(
 
         if (request.organization != null) {
             val organization = request.organization!!
-            val targetUser = request.reservedByUser!!
+            val targetUser = request.user!!
 
             val isMember = organizationMemberService.isMember(
                 targetUser.id!!,

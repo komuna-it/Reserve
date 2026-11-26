@@ -23,10 +23,11 @@ class CreateReservationRequest(
 
     // Request organized by system
     var endAt: OffsetDateTime? = null,
-    var reservedByUserId: Long? = null,
+    var userId: Long? = null,
     var reservedAt: OffsetDateTime? = null,
     var organization: OrganizationEntity? = null,
-    var reservedByUser: UserEntity? = null,
+    var user: UserEntity? = null,
+    var actor: UserEntity ,
     var room: RoomEntity? = null,
 ) {
 }

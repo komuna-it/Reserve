@@ -3,46 +3,48 @@ package site.komuna.reserve.reservation.model
 import java.time.Duration
 import java.time.OffsetDateTime
 
-class ReservationDto(
-    val id: Long,
+data class ReservationDto(
+    val id: Long?,
     val type: ReservationType,
-    val room: Long,
+    val roomId: Long,
     val startAt: OffsetDateTime,
     val endAt: OffsetDateTime,
     val duration: Long,
-    val reservedBy: Long,
-    val reservedByText: String,
-    val status: ReservationStatus,
-    val organization: Long? = null,
+    val userId: Long? = null,
+    val status: ReservationStatus? = null,
+    val organizationId: Long? = null,
     val price: Int? = null,
-    val paid: Boolean = false,
+    val paid: Boolean? = false,
+    val actorUserId: Long? = null,
 ) {
 
     constructor(reservation: ReservationEntity) : this(
         id = reservation.id!!,
         type = reservation.type,
-        room = reservation.room.id!!,
+        roomId = reservation.room.id!!,
         startAt = reservation.startAt,
         endAt = reservation.endAt,
         duration = Duration.between(reservation.startAt, reservation.endAt).toMinutes(),
-        reservedBy = reservation.reservedBy.id!!,
+        userId = reservation.user.id!!,
         status = reservation.status,
-        organization = reservation.organization?.id,
-        reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick,
-        paid = reservation.paid)
+        organizationId = reservation.organization?.id,
+        paid = reservation.paid,
+        actorUserId = reservation.actor.id
+    )
 
     constructor(reservation: ReservationEntity, price: Int) : this(
         id = reservation.id!!,
         type = reservation.type,
-        room = reservation.room.id!!,
+        roomId = reservation.room.id!!,
         startAt = reservation.startAt,
         endAt = reservation.endAt,
         duration = Duration.between(reservation.startAt, reservation.endAt).toMinutes(),
-        reservedBy = reservation.reservedBy.id!!,
+        userId = reservation.user.id!!,
         status = reservation.status,
-        organization = reservation.organization?.id,
-        reservedByText = reservation.organization?.name ?: reservation.reservedBy.nick,
+        organizationId = reservation.organization?.id,
         paid = reservation.paid,
-        price = price
+        price = price,
+        actorUserId = reservation.actor.id
+
     )
 }

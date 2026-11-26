@@ -4,8 +4,8 @@ import java.time.OffsetDateTime
 
 class SearchReservationsFilter(
     val userId: Long? = null,
+    val actorUserId: Long? = null,
     val reservationId: Long? = null,
-    var reservedBy: Long? = null,
     var organizationsId: MutableList<Long> = mutableListOf(),
     val future : Boolean = false,
     val private: Boolean? = null,

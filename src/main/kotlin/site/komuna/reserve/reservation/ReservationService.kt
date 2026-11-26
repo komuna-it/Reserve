@@ -7,7 +7,9 @@ import org.hibernate.Hibernate
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
+import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import site.komuna.reserve.common.httpError.exception.CannotPerformThatActionException
 import site.komuna.reserve.common.httpError.exception.ReservationNotFoundException
 import site.komuna.reserve.email.EmailService
@@ -15,6 +17,7 @@ import site.komuna.reserve.email.model.EmailRecipient
 import site.komuna.reserve.email.model.EmailTemplateType
 import site.komuna.reserve.organization.OrganizationService
 import site.komuna.reserve.organization.model.OrganizationEntity
+import site.komuna.reserve.organization.model.SearchOrganizationFilter
 import site.komuna.reserve.organization.organizationMember.OrganizationMemberService
 import site.komuna.reserve.reservation.cancel.CancelReservationService
 import site.komuna.reserve.reservation.confirm.ConfirmReservationService
@@ -56,12 +59,122 @@ class ReservationService(
         private val logger = KotlinLogging.logger {}
     }
 
-    fun getReservations(filter: SearchReservationsFilter, pageable: Pageable): Page<ReservationEntity> {
-        prepareSearch(filter)
+    fun getReservations(
+        filter: SearchReservationsFilter,
+        pageable: Pageable,
+    ): Page<ReservationEntity> {
+        return repository.findAll(specification(filter), pageable)
+    }
 
-        val spec = specification(filter)
+fun specification(filter: SearchReservationsFilter) =
+    Specification<ReservationEntity> { root, _, cb ->
+        val predicates = mutableListOf<Predicate>()
 
-        return repository.findAll(spec, pageable)
+        filter.reservationId?.let { id ->
+            predicates += cb.equal(root.get<Long>("id"), id)
+        }
+
+        // Reservation beneficiary
+        filter.userId?.let { userId ->
+            val userPredicate = cb.equal(
+                root.get<UserEntity>("user").get<Long>("id"),
+                userId,
+            )
+
+            if (filter.private == null && filter.organizationsId.isNotEmpty()) {
+                // Calendar visibility:
+                // user's reservations OR reservations of their organizations
+                val organizationJoin = root.join<ReservationEntity, OrganizationEntity>(
+                    "organization",
+                    JoinType.LEFT,
+                )
+
+                val organizationPredicate =
+                    organizationJoin.get<Long>("id").`in`(filter.organizationsId)
+
+                predicates += cb.or(userPredicate, organizationPredicate)
+            } else {
+                predicates += userPredicate
+            }
+        }
+
+        // Reservation creator / actor
+        filter.actorUserId?.let { actorUserId ->
+            predicates += cb.equal(
+                root.get<UserEntity>("actor").get<Long>("id"),
+                actorUserId,
+            )
+        }
+
+        when (filter.private) {
+            true -> {
+                predicates += cb.isNull(root.get<OrganizationEntity>("organization"))
+            }
+
+            false -> {
+                predicates += cb.isNotNull(root.get<OrganizationEntity>("organization"))
+
+                if (filter.organizationsId.isNotEmpty()) {
+                    val organizationJoin = root.join<ReservationEntity, OrganizationEntity>(
+                        "organization",
+                        JoinType.INNER,
+                    )
+
+                    predicates += organizationJoin.get<Long>("id")
+                        .`in`(filter.organizationsId)
+                }
+            }
+
+            null -> {
+                if (filter.userId == null && filter.organizationsId.isNotEmpty()) {
+                    val organizationJoin = root.join<ReservationEntity, OrganizationEntity>(
+                        "organization",
+                        JoinType.INNER,
+                    )
+
+                    predicates += organizationJoin.get<Long>("id")
+                        .`in`(filter.organizationsId)
+                }
+            }
+        }
+
+        if (filter.future) {
+            predicates += cb.greaterThanOrEqualTo(
+                root.get("startAt"),
+                OffsetDateTime.now(ZoneOffset.UTC),
+            )
+        }
+
+        filter.roomId?.let { roomId ->
+            predicates += cb.equal(
+                root.get<RoomEntity>("room").get<Long>("id"),
+                roomId,
+            )
+        }
+
+        filter.startAtAfter?.let {
+            predicates += cb.greaterThanOrEqualTo(
+                root.get<OffsetDateTime>("startAt"),
+                it,
+            )
+        }
+
+        filter.startAtBefore?.let {
+            predicates += cb.lessThanOrEqualTo(
+                root.get<OffsetDateTime>("startAt"),
+                it,
+            )
+        }
+
+        if (filter.status.isNotEmpty()) {
+            predicates += root.get<ReservationStatus>("status").`in`(filter.status)
+        }
+
+        if (filter.type.isNotEmpty()) {
+            predicates += root.get<ReservationType>("type").`in`(filter.type)
+        }
+
+        cb.and(*predicates.toTypedArray())
     }
 
     fun getTomorrowReservations(): List<ReservationEntity> {
@@ -72,87 +185,6 @@ class ReservationService(
         return repository.findByStartAtBetween(startAt, endAt)
     }
 
-    fun specification(filter: SearchReservationsFilter) =
-        Specification<ReservationEntity> { root, _, cb ->
-            val predicates = mutableListOf<Predicate>()
-
-            filter.reservationId?.let {
-                predicates += cb.equal(root.get<Long>("id"), it)
-            }
-
-            when (filter.private) {
-                true -> {
-                    predicates += cb.isNull(root.get<Any>("organization"))
-
-                    val targetUserId = filter.userId ?: filter.reservedBy
-                    targetUserId?.let { uid ->
-                        predicates += cb.equal(root.get<UserEntity>("reservedBy").get<Long>("id"), uid)
-                    }
-                }
-                false -> {
-                    val organizationJoin = root.join<ReservationEntity, OrganizationEntity>("organization", JoinType.INNER)
-                    predicates += cb.isNotNull(root.get<Any>("organization"))
-
-                    val orgIds = mutableSetOf<Long>()
-                    orgIds.addAll(filter.organizationsId)
-                    filter.reservedBy?.let { orgIds.add(it) }
-
-                    if (orgIds.isNotEmpty()) {
-                        predicates += organizationJoin.get<Long>("id").`in`(orgIds)
-                    }
-
-                    filter.userId?.let { uid ->
-                        predicates += cb.equal(root.get<UserEntity>("reservedBy").get<Long>("id"), uid)
-                    }
-                }
-                null -> {
-                    if (filter.userId != null) {
-                        val userIsCreator = cb.equal(root.get<UserEntity>("reservedBy").get<Long>("id"), filter.userId)
-                        if (filter.organizationsId.isNotEmpty()) {
-                            val organizationJoin = root.join<ReservationEntity, OrganizationEntity>("organization", JoinType.LEFT)
-                            val inUserOrganizations = organizationJoin.get<Long>("id").`in`(filter.organizationsId)
-                            predicates += cb.or(userIsCreator, inUserOrganizations)
-                        } else {
-                            predicates += userIsCreator
-                        }
-                    } else if (filter.organizationsId.isNotEmpty()) {
-                        val organizationJoin = root.join<ReservationEntity, OrganizationEntity>("organization", JoinType.INNER)
-                        predicates += organizationJoin.get<Long>("id").`in`(filter.organizationsId)
-                    } else filter.reservedBy?.let { rId ->
-                        val userIsCreator = cb.equal(root.get<UserEntity>("reservedBy").get<Long>("id"), rId)
-                        val organizationJoin = root.join<ReservationEntity, OrganizationEntity>("organization", JoinType.LEFT)
-                        val isOrg = organizationJoin.get<Long>("id").`in`(listOf(rId))
-                        predicates += cb.or(userIsCreator, isOrg)
-                    }
-                }
-            }
-
-            if (filter.future) {
-                predicates += cb.greaterThanOrEqualTo(
-                    root.get("startAt"),
-                    OffsetDateTime.now(ZoneOffset.UTC)
-                )
-            }
-
-            filter.roomId?.let { rid ->
-                val roomJoin = root.join<ReservationEntity, RoomEntity>("room")
-                predicates += cb.equal(roomJoin.get<Long>("id"), rid)
-            }
-
-            filter.startAtAfter?.let {
-                predicates += cb.greaterThanOrEqualTo(root.get<OffsetDateTime>("startAt"), it)
-            }
-
-            filter.startAtBefore?.let {
-                predicates += cb.lessThanOrEqualTo(root.get<OffsetDateTime>("startAt"), it)
-            }
-
-            filter.status.takeIf { it.isNotEmpty() }?.let {
-                predicates += root.get<ReservationStatus>("status").`in`(it)
-            }
-
-            cb.and(*predicates.toTypedArray())
-        }
 
     fun findById(id: Long): ReservationEntity {
         return repository.findById(id).orElseThrow { ReservationNotFoundException(id) }
@@ -182,7 +214,7 @@ class ReservationService(
      * Reservation could be automatically confirmed if a user or organization is trusted
      */
     fun confirmReservationIfTrusted(reservation: ReservationEntity): ReservationEntity {
-        val user = reservation.reservedBy
+        val user = reservation.user
         val organization = reservation.organization
 
         if (user.trusted) {
@@ -350,24 +382,33 @@ class ReservationService(
         return response
     }
 
-    fun prepareCreateRequest(request: CreateReservationRequest, currentUser: UserEntity) {
+    fun prepareCreateRequest(
+        request: CreateReservationRequest,
+        currentUser: UserEntity,
+    ) {
         val canReserveForOthers = currentUser.role in setOf(
             Role.ADMIN,
-            Role.MANAGER
+            Role.MANAGER,
         )
 
-        val targetUserId = if (canReserveForOthers && request.reservedByUserId != null) {
-            request.reservedByUserId!!
+        val targetUserId = if (canReserveForOthers && request.userId != null) {
+            request.userId!!
         } else {
-            currentUser.id!!
+            requireNotNull(currentUser.id)
         }
 
-        request.reservedByUserId = targetUserId
-        request.reservedByUser = userService.findById(targetUserId)
-        request.room = roomService.getRoom(request.roomId)
-        request.endAt = request.startAt.plusMinutes(request.duration.toMinutes())
+        request.userId = targetUserId
+        request.user = userService.findById(targetUserId)
 
-        request.organization = request.organizationId?.let { organizationService.getOrganization(it) }
+        request.actor = currentUser
+        request.room = roomService.getRoom(request.roomId)
+
+        request.endAt = request.startAt.plus(request.duration)
+        request.reservedAt = OffsetDateTime.now(ZoneOffset.UTC)
+
+        request.organization = request.organizationId?.let {
+            organizationService.getOrganization(it)
+        }
     }
 
     fun setPaid(reservationId: Long, paid: Boolean, changedBy: Long): ReservationEntity {
@@ -389,17 +430,6 @@ class ReservationService(
         logger.trace { "Changing reservation ${reservation.id} status from ${reservation.status} to $status" }
         reservation.status = status
         return repository.save(reservation)
-    }
-
-    private fun prepareSearch(filter: SearchReservationsFilter): SearchReservationsFilter {
-        if (filter.private == true) {
-            filter.organizationsId.clear()
-        }
-        else if (filter.reservedBy != null && filter.organizationsId.isEmpty()) {
-            filter.organizationsId.add(filter.reservedBy!!)
-        }
-
-        return filter
     }
 
     fun getReservationDto(reservation: ReservationEntity): ReservationDto {
@@ -464,7 +494,7 @@ class ReservationService(
         val formatter = DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.of("pl", "PL"))
         val zoneId = ZoneId.of("Europe/Warsaw")
 
-        val user = reservation.reservedBy
+        val user = reservation.user
         val startAt = reservation.startAt.atZoneSameInstant(zoneId)
         val endAt = reservation.endAt.atZoneSameInstant(zoneId)
         val duration = Duration.between(startAt, endAt)
@@ -522,4 +552,110 @@ class ReservationService(
         return counts.associate { it.status to it.count }
     }
 
+    @Transactional(readOnly = true)
+    fun getCalendarReservations(
+        startAtAfter: OffsetDateTime,
+        startAtBefore: OffsetDateTime,
+        roomId: Long?,
+        pageable: Pageable,
+        authentication: Authentication?
+    ): Page<ReservationDto> {
+
+        val currentUser: UserEntity? = authentication
+            ?.name
+            ?.toLongOrNull()
+            ?.let { userId -> userService.findById(userId) }
+
+        val isAdminOrManager = currentUser?.role in setOf(
+            Role.ADMIN,
+            Role.MANAGER
+        )
+
+        val visibleStatuses = listOf(
+            ReservationStatus.REQUESTED_CANCELLATION,
+            ReservationStatus.CREATED,
+            ReservationStatus.CONFIRMED,
+            ReservationStatus.REJECTED_CANCELLATION
+        )
+
+        val filter = when {
+            // Administrators and managers can see all reservations.
+            isAdminOrManager -> SearchReservationsFilter(
+                roomId = roomId,
+                startAtAfter = startAtAfter,
+                startAtBefore = startAtBefore,
+            )
+
+            // Regular users can see their private reservations
+            // and reservations belonging to their organizations.
+            currentUser != null -> {
+                val userId = requireNotNull(currentUser.id)
+
+                val organizationIds = organizationService
+                    .collectTargetOrganizationIds(
+                        SearchOrganizationFilter(userId = userId)
+                    )
+                    .toMutableList()
+
+                SearchReservationsFilter(
+                    roomId = roomId,
+                    userId = userId,
+                    organizationsId = organizationIds,
+                    startAtAfter = startAtAfter,
+                    startAtBefore = startAtBefore,
+                    status = visibleStatuses.toMutableList()
+                )
+            }
+
+            // Guests can see calendar entries, but only selected statuses.
+            else -> SearchReservationsFilter(
+                roomId = roomId,
+                startAtAfter = startAtAfter,
+                startAtBefore = startAtBefore,
+                status = visibleStatuses.toMutableList()
+            )
+        }
+
+        return repository.findAll(
+            specification(filter),
+            pageable
+        ).map { reservation ->
+
+            val organization = reservation.organization
+
+            val canSeeIdentifiers = when {
+                isAdminOrManager -> true
+
+                currentUser == null -> false
+
+                // Private reservation: only its beneficiary can see details.
+                organization == null ->
+                    reservation.user.id == currentUser.id
+
+                // Organization reservation: members and owners can see details.
+                else ->
+                    organizationService.isMember(currentUser, organization) ||
+                            organizationService.isOwner(currentUser, organization)
+            }
+
+            val dto = ReservationDto(
+                reservation,
+                pricingService.getPrice(reservation)
+            )
+
+            if (canSeeIdentifiers) {
+                dto
+            } else {
+                dto.copy(
+                    id = null,
+                    status = null,
+                    userId = null,
+                    organizationId = null,
+                    actorUserId = null,
+                    paid = null,
+                    price = null
+                )
+            }
+        }
+    }
 }

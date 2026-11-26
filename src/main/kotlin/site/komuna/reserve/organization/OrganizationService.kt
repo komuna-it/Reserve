@@ -58,7 +58,7 @@ class OrganizationService(
             }
     }
     // return org when user is a member or an owner
-    private fun collectTargetOrganizationIds(filter: SearchOrganizationFilter): Set<Long> {
+    fun collectTargetOrganizationIds(filter: SearchOrganizationFilter): Set<Long> {
         val organizationIds = mutableSetOf<Long>()
 
         filter.ownerId?.let {
