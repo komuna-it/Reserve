@@ -27,7 +27,7 @@ class CreateReservationRequest(
     var reservedAt: OffsetDateTime? = null,
     var organization: OrganizationEntity? = null,
     var user: UserEntity? = null,
-    var actor: UserEntity ,
+    var actor: UserEntity? = null ,
     var room: RoomEntity? = null,
 ) {
 }
