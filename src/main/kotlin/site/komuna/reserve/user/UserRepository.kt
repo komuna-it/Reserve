@@ -13,5 +13,6 @@ interface UserRepository: JpaRepository<UserEntity, Long> {
     fun findByEmail(email: String): Optional<UserEntity>
     fun existsByRole(role: Role): Boolean
     fun findByRole(role: Role): List<UserEntity>
+    fun countByRole(role: Role): Long
     fun findByNickNot(nick: String, pageable: Pageable): Page<UserEntity>
 }
